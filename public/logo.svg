@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 750 220" width="100%" height="100%">
+  <defs>
+    <style>
+      .brand-title {
+        font-family: 'Outfit', 'Montserrat', 'Arial Black', sans-serif;
+        font-weight: 900;
+        font-size: 64px;
+        letter-spacing: 5px;
+        fill: #4C0070;
+      }
+      .brand-express {
+        font-family: 'Outfit', 'Montserrat', 'Arial Black', sans-serif;
+        font-weight: 900;
+        font-size: 72px;
+        letter-spacing: 4px;
+      }
+    </style>
+    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4C0070" />
+      <stop offset="100%" stop-color="#6B009C" />
+    </linearGradient>
+    <linearGradient id="pinkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ED0047" />
+      <stop offset="100%" stop-color="#FF1A60" />
+    </linearGradient>
+  </defs>
+
+  <g transform="translate(10, 10)">
+    <!-- AMAIRANY -->
+    <text x="5" y="65" class="brand-title">AMAIRANY</text>
+
+    <!-- EXPRESS WITH SPEED CHEVRON -->
+    <g transform="translate(0, 85)">
+      <!-- E with speed streaks -->
+      <g transform="translate(5, 10)">
+        <rect x="0" y="20" width="18" height="6" rx="3" fill="#4C0070" />
+        <rect x="5" y="32" width="24" height="6" rx="3" fill="#4C0070" />
+        <rect x="0" y="44" width="16" height="6" rx="3" fill="#4C0070" />
+        <path d="M 32 10 L 85 10 A 5 5 0 0 1 90 15 L 90 22 A 5 5 0 0 1 85 27 L 48 27 L 48 34 L 80 34 A 4 4 0 0 1 84 38 L 84 44 A 4 4 0 0 1 80 48 L 48 48 L 48 57 L 88 57 A 5 5 0 0 1 93 62 L 93 70 A 5 5 0 0 1 88 75 L 32 75 Z" fill="#4C0070"/>
+      </g>
+
+      <!-- X with Sharp Red Chevron -->
+      <g transform="translate(105, 10)">
+        <path d="M 12 10 L 32 10 L 68 75 L 48 75 Z" fill="#4C0070"/>
+        <path d="M 40 10 L 62 10 L 45 42 L 66 75 L 44 75 L 28 48 Z" fill="url(#pinkGrad)"/>
+      </g>
+
+      <!-- PRESS -->
+      <g transform="translate(180, 10)">
+        <!-- P -->
+        <path d="M 5 10 L 38 10 C 52 10, 60 17, 60 29 C 60 41, 52 48, 38 48 L 22 48 L 22 75 L 5 75 Z M 22 23 L 36 23 C 43 23, 46 25, 46 29 C 46 33, 43 35, 36 35 L 22 35 Z" fill="#4C0070"/>
+        <!-- R -->
+        <path d="M 68 10 L 102 10 C 116 10, 124 17, 124 28 C 124 37, 118 42, 108 45 L 126 75 L 107 75 L 92 48 L 85 48 L 85 75 L 68 75 Z M 85 23 L 100 23 C 107 23, 110 25, 110 28 C 110 32, 107 34, 100 34 L 85 34 Z" fill="#4C0070"/>
+        <!-- E -->
+        <g transform="translate(132, 0)">
+          <path d="M 5 10 L 52 10 L 52 23 L 22 23 L 22 34 L 48 34 L 48 46 L 22 46 L 22 62 L 55 62 L 55 75 L 5 75 Z" fill="#4C0070"/>
+          <rect x="22" y="10" width="32" height="7" fill="#ED0047" rx="1"/>
+        </g>
+        <!-- S -->
+        <path d="M 200 10 L 242 10 C 252 10, 258 15, 258 23 C 258 31, 250 35, 235 37 L 225 38 C 218 39, 215 41, 215 45 C 215 49, 220 52, 230 52 L 245 52 C 251 52, 256 50, 258 46 L 258 60 C 253 62, 246 64, 230 64 C 214 64, 201 58, 201 44 C 201 35, 210 30, 224 28 L 234 27 C 241 26, 244 24, 244 21 C 244 18, 239 16, 230 16 L 216 16 C 209 16, 203 18, 200 22 Z" fill="#4C0070" transform="translate(0, 11) scale(1, 0.85)"/>
+        <!-- S -->
+        <path d="M 262 10 L 304 10 C 314 10, 320 15, 320 23 C 320 31, 312 35, 297 37 L 287 38 C 280 39, 277 41, 277 45 C 277 49, 282 52, 292 52 L 307 52 C 313 52, 318 50, 320 46 L 320 60 C 315 62, 308 64, 292 64 C 276 64, 263 58, 263 44 C 263 35, 272 30, 286 28 L 296 27 C 303 26, 306 24, 306 21 C 306 18, 301 16, 292 16 L 278 16 C 271 16, 265 18, 262 22 Z" fill="#4C0070" transform="translate(0, 11) scale(1, 0.85)"/>
+      </g>
+    </g>
+  </g>
+</svg>
