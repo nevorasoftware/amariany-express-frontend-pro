@@ -154,25 +154,41 @@ export function isDateTodayOrFuture(dateStr, baseDate = new Date()) {
 export function checkPackageBelongsToSocio(pkg, socioRoutesList, routesList) {
   if (!socioRoutesList || socioRoutesList.length === 0) return false;
 
-  // 1. Verificación directa por la columna "rutaCodigo" (Ej: "R-OJB")
-  if (pkg.rutaCodigo) {
-    const pkgRutaClean = pkg.rutaCodigo.trim().toLowerCase();
-    const directMatch = socioRoutesList.some(rCode => rCode.trim().toLowerCase() === pkgRutaClean);
-    if (directMatch) return true;
-  }
-
-  // 2. Verificación secundaria por coincidencia en texto de destino o nombre de municipio
   const destLower = (pkg.destino || '').toLowerCase();
-  return socioRoutesList.some(rCode => {
-    if (!rCode) return false;
-    const codeLower = rCode.toLowerCase().trim();
-    if (destLower.includes(codeLower)) return true;
+  const pkgRutaCodeLower = (pkg.rutaCodigo || '').toLowerCase().trim();
 
-    const rObj = routesList ? routesList.find(r => (r.codigo || '').toLowerCase().trim() === codeLower || (r.lugarPrincipal || '').toLowerCase().trim() === codeLower) : null;
-    if (rObj) {
-      if (rObj.lugarPrincipal && destLower.includes(rObj.lugarPrincipal.toLowerCase())) return true;
-      if (rObj.lugarReferencia && destLower.includes(rObj.lugarReferencia.toLowerCase())) return true;
+  return socioRoutesList.some(userRouteItem => {
+    if (!userRouteItem) return false;
+    const itemLower = userRouteItem.toLowerCase().trim();
+
+    // Extraer código R-### si viene dentro del texto (ej: "[R-OJB] SAN PEDRO")
+    const codeMatch = itemLower.match(/r-[a-z0-9]{3}/i);
+    const extractedCode = codeMatch ? codeMatch[0].toLowerCase() : null;
+
+    // 1. Coincidencia directa con pkg.rutaCodigo (ej: "r-ojb")
+    if (pkgRutaCodeLower) {
+      if (extractedCode && pkgRutaCodeLower === extractedCode) return true;
+      if (pkgRutaCodeLower === itemLower) return true;
     }
+
+    // 2. Coincidencia en el texto de destino del paquete
+    if (extractedCode && destLower.includes(extractedCode)) return true;
+    if (destLower.includes(itemLower)) return true;
+
+    // 3. Buscar en el catálogo de rutas para emparejar por municipio / lugarPrincipal
+    if (routesList && routesList.length > 0) {
+      const matchedRoute = routesList.find(r => 
+        (r.codigo || '').toLowerCase() === itemLower ||
+        (extractedCode && (r.codigo || '').toLowerCase() === extractedCode) ||
+        (r.lugarPrincipal || '').toLowerCase() === itemLower
+      );
+      if (matchedRoute) {
+        if (matchedRoute.codigo && pkgRutaCodeLower === matchedRoute.codigo.toLowerCase()) return true;
+        if (matchedRoute.lugarPrincipal && destLower.includes(matchedRoute.lugarPrincipal.toLowerCase())) return true;
+        if (matchedRoute.lugarReferencia && destLower.includes(matchedRoute.lugarReferencia.toLowerCase())) return true;
+      }
+    }
+
     return false;
   });
 }
@@ -363,10 +379,10 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
   };
 
   useEffect(() => {
-    if (activeSubTab === 'socios') {
+    if (activeSubTab === 'socios' || activeSubTab === 'dispatch' || isSocioRole) {
       loadSocios();
     }
-  }, [activeSubTab]);
+  }, [activeSubTab, isSocioRole]);
 
   const toggleRouteForSocio = (routeCode, isEdit = false) => {
     if (isEdit) {
@@ -794,11 +810,12 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
   };
 
   useEffect(() => {
-    if (activeSubTab === 'packages') {
+    if (activeSubTab === 'packages' || activeSubTab === 'dispatch' || isSocioRole) {
       loadPackages();
-      loadSellers();
+      if (activeSubTab === 'packages') loadSellers();
+      loadSocios();
     }
-  }, [activeSubTab]);
+  }, [activeSubTab, isSocioRole]);
 
   const handlePackageFileChange = (e) => {
     const file = e.target.files[0];
