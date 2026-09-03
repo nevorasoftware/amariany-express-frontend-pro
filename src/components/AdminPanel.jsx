@@ -4006,7 +4006,22 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
 
           {/* TABLA DE HISTORIAL DE PAQUETES DESPACHADOS / ENTREGADOS */}
           {(() => {
-            const deliveredPackages = packages.filter(p => p.estado === 'ENTREGADO');
+            const currentSocio = isSocioRole 
+              ? socios.find(s => 
+                  (s.correo || '').toLowerCase().trim() === (adminUser?.email || '').toLowerCase().trim() ||
+                  (s.nombre || '').toLowerCase().trim() === (adminUser?.name || '').toLowerCase().trim()
+                ) 
+              : null;
+            const socioRoutesList = currentSocio ? (currentSocio.rutas || currentSocio.ruta || '').split(',').map(r => r.trim()).filter(Boolean) : [];
+
+            const deliveredPackages = (packages || []).filter(p => {
+              if (p.estado !== 'ENTREGADO') return false;
+              if (isSocioRole) {
+                return checkPackageBelongsToSocio(p, socioRoutesList, routes);
+              }
+              return true;
+            });
+
             return (
               <div style={{
                 background: '#ffffff',
@@ -4020,11 +4035,15 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                     <Truck size={22} color="#15803d" />
                     <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#15803d', margin: 0 }}>
-                      Historial de Paquetes Despachados / Entregados ({deliveredPackages.length})
+                      {isSocioRole 
+                        ? `Historial de Mis Paquetes Entregados (${deliveredPackages.length})` 
+                        : `Historial de Paquetes Despachados / Entregados (${deliveredPackages.length})`}
                     </h3>
                   </div>
                   <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                    Registro histórico de paquetes entregados con comprobante
+                    {isSocioRole 
+                      ? `Paquetes entregados correspondientes a tus rutas asignadas (${socioRoutesList.join(', ') || 'Todas'})` 
+                      : 'Registro histórico completo de paquetes entregados con comprobante'}
                   </span>
                 </div>
 
