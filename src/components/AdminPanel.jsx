@@ -231,6 +231,8 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteCo
   const [socios, setSocios] = useState([]);
   const [sociosLoading, setSociosLoading] = useState(false);
   const [socioSearch, setSocioSearch] = useState('');
+  const [socioRouteFilter, setSocioRouteFilter] = useState('');
+  const [editSocioRouteFilter, setEditSocioRouteFilter] = useState('');
   const [socioFormData, setSocioFormData] = useState({
     nombre: '',
     telefono: '',
@@ -274,6 +276,28 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteCo
         const updated = exists ? current.filter(r => r !== routeCode) : [...current, routeCode];
         return { ...prev, rutas: updated };
       });
+    }
+  };
+
+  const removeSelectedRoute = (routeCode, isEdit = false) => {
+    if (isEdit) {
+      setEditSocioFormData(prev => ({
+        ...prev,
+        rutas: (prev.rutas || []).filter(r => r !== routeCode)
+      }));
+    } else {
+      setSocioFormData(prev => ({
+        ...prev,
+        rutas: (prev.rutas || []).filter(r => r !== routeCode)
+      }));
+    }
+  };
+
+  const clearAllSelectedRoutes = (isEdit = false) => {
+    if (isEdit) {
+      setEditSocioFormData(prev => ({ ...prev, rutas: [] }));
+    } else {
+      setSocioFormData(prev => ({ ...prev, rutas: [] }));
     }
   };
 
@@ -1883,54 +1907,143 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteCo
                 />
               </div>
 
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary-burgundy)', marginBottom: '0.5rem' }}>
-                  Rutas Asignadas (Seleccione una o varias rutas) *
-                </label>
+              <div style={{ gridColumn: '1 / -1', background: 'rgba(255,255,255,0.7)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--primary-burgundy)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    📌 Rutas Asignadas (Seleccione una o varias rutas) *
+                  </label>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>
+                    {socioFormData.rutas?.length || 0} asignada(s) de {routes?.length || 0} rutas
+                  </div>
+                </div>
+
+                {/* Buscador de rutas por código o por nombre */}
+                <div style={{ position: 'relative', marginBottom: '0.75rem' }}>
+                  <Search size={16} style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input
+                    type="text"
+                    placeholder="🔍 Buscar ruta por Código (R-###) o Municipio / Nombre (ej: NEJAPA, JAYAQUE)..."
+                    value={socioRouteFilter}
+                    onChange={(e) => setSocioRouteFilter(e.target.value)}
+                    className="input-control"
+                    style={{ paddingLeft: '2.4rem', fontSize: '0.84rem', height: '40px', background: '#ffffff' }}
+                  />
+                  {socioRouteFilter && (
+                    <button
+                      type="button"
+                      onClick={() => setSocioRouteFilter('')}
+                      style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontWeight: 800 }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Rutas Seleccionadas Actualmente */}
+                {socioFormData.rutas && socioFormData.rutas.length > 0 && (
+                  <div style={{ marginBottom: '0.75rem', padding: '0.65rem', background: '#f8fafc', borderRadius: 'var(--radius-sm)', border: '1px dashed #cbd5e1' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--primary-burgundy)' }}>
+                        ✓ Rutas Seleccionadas ({socioFormData.rutas.length}):
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => clearAllSelectedRoutes(false)}
+                        style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '0.72rem', fontWeight: 800, cursor: 'pointer' }}
+                      >
+                        Limpiar selección
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                      {socioFormData.rutas.map(rCode => (
+                        <span
+                          key={rCode}
+                          style={{
+                            background: 'var(--primary-burgundy)',
+                            color: '#ffffff',
+                            padding: '0.2rem 0.55rem',
+                            borderRadius: '999px',
+                            fontSize: '0.75rem',
+                            fontWeight: 800,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem'
+                          }}
+                        >
+                          📌 {rCode}
+                          <span
+                            onClick={() => removeSelectedRoute(rCode, false)}
+                            style={{ cursor: 'pointer', paddingLeft: '0.2rem', opacity: 0.8 }}
+                            title="Quitar esta ruta"
+                          >
+                            ✕
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Lista Scrollable de Rutas Filtradas */}
                 <div style={{
-                  maxHeight: '180px',
+                  maxHeight: '190px',
                   overflowY: 'auto',
                   border: '1px solid #cbd5e1',
                   borderRadius: 'var(--radius-sm)',
                   padding: '0.75rem',
-                  background: 'rgba(255, 255, 255, 0.8)',
+                  background: '#ffffff',
                   display: 'flex',
                   flexWrap: 'wrap',
-                  gap: '0.5rem'
+                  gap: '0.45rem'
                 }}>
-                  {routes && routes.map(r => {
-                    const rCode = r.codigo || r.lugarPrincipal;
-                    const isSelected = (socioFormData.rutas || []).includes(rCode);
-                    return (
-                      <button
-                        type="button"
-                        key={r.id}
-                        onClick={() => toggleRouteForSocio(rCode, false)}
-                        style={{
-                          padding: '0.4rem 0.75rem',
-                          borderRadius: 'var(--radius-sm)',
-                          fontSize: '0.82rem',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          border: isSelected ? '1px solid var(--primary-burgundy)' : '1px solid #cbd5e1',
-                          background: isSelected ? 'var(--primary-burgundy)' : '#ffffff',
-                          color: isSelected ? '#ffffff' : '#334155',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.35rem',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        {isSelected ? '✓' : '+'} {r.codigo ? `[${r.codigo}] ` : ''}{r.lugarPrincipal}
-                      </button>
-                    );
-                  })}
+                  {(() => {
+                    const filterTerm = socioRouteFilter.trim().toLowerCase();
+                    const filtered = routes ? routes.filter(r => {
+                      if (!filterTerm) return true;
+                      const code = (r.codigo || '').toLowerCase();
+                      const principal = (r.lugarPrincipal || '').toLowerCase();
+                      const ref = (r.lugarReferencia || '').toLowerCase();
+                      const dias = (r.dias || '').toLowerCase();
+                      return code.includes(filterTerm) || principal.includes(filterTerm) || ref.includes(filterTerm) || dias.includes(filterTerm);
+                    }) : [];
+
+                    if (filtered.length === 0) {
+                      return (
+                        <div style={{ width: '100%', textAlign: 'center', padding: '1rem', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                          No se encontraron rutas que coincidan con "{socioRouteFilter}".
+                        </div>
+                      );
+                    }
+
+                    return filtered.map(r => {
+                      const rCode = r.codigo || r.lugarPrincipal;
+                      const isSelected = (socioFormData.rutas || []).includes(rCode);
+                      return (
+                        <button
+                          type="button"
+                          key={r.id}
+                          onClick={() => toggleRouteForSocio(rCode, false)}
+                          style={{
+                            padding: '0.45rem 0.75rem',
+                            borderRadius: 'var(--radius-sm)',
+                            fontSize: '0.82rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            border: isSelected ? '1.5px solid var(--primary-burgundy)' : '1px solid #cbd5e1',
+                            background: isSelected ? 'var(--primary-burgundy)' : '#f8fafc',
+                            color: isSelected ? '#ffffff' : '#334155',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          {isSelected ? '✓' : '+'} {r.codigo ? `[${r.codigo}] ` : ''}{r.lugarPrincipal}
+                        </button>
+                      );
+                    });
+                  })()}
                 </div>
-                {socioFormData.rutas && socioFormData.rutas.length > 0 && (
-                  <div style={{ fontSize: '0.78rem', color: 'var(--accent-crimson)', fontWeight: 700, marginTop: '0.35rem' }}>
-                    {socioFormData.rutas.length} ruta(s) seleccionada(s): {socioFormData.rutas.join(', ')}
-                  </div>
-                )}
               </div>
 
               <div style={{ gridColumn: '1 / -1', marginTop: '0.5rem' }}>
@@ -2162,54 +2275,143 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteCo
                 />
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary-burgundy)', marginBottom: '0.5rem' }}>
-                  Rutas Asignadas (Seleccione una o varias rutas)
-                </label>
+              <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary-burgundy)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    📌 Rutas Asignadas (Seleccione una o varias rutas)
+                  </label>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>
+                    {editSocioFormData.rutas?.length || 0} asignada(s) de {routes?.length || 0} rutas
+                  </div>
+                </div>
+
+                {/* Buscador de rutas por código o por nombre */}
+                <div style={{ position: 'relative', marginBottom: '0.6rem' }}>
+                  <Search size={16} style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input
+                    type="text"
+                    placeholder="🔍 Buscar por Código (R-###) o Municipio / Nombre..."
+                    value={editSocioRouteFilter}
+                    onChange={(e) => setEditSocioRouteFilter(e.target.value)}
+                    className="input-control"
+                    style={{ paddingLeft: '2.4rem', fontSize: '0.82rem', height: '38px', background: '#ffffff' }}
+                  />
+                  {editSocioRouteFilter && (
+                    <button
+                      type="button"
+                      onClick={() => setEditSocioRouteFilter('')}
+                      style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontWeight: 800 }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Rutas Seleccionadas Actualmente */}
+                {editSocioFormData.rutas && editSocioFormData.rutas.length > 0 && (
+                  <div style={{ marginBottom: '0.6rem', padding: '0.55rem', background: '#ffffff', borderRadius: 'var(--radius-sm)', border: '1px dashed #cbd5e1' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                      <span style={{ fontSize: '0.74rem', fontWeight: 800, color: 'var(--primary-burgundy)' }}>
+                        ✓ Rutas Seleccionadas ({editSocioFormData.rutas.length}):
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => clearAllSelectedRoutes(true)}
+                        style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '0.72rem', fontWeight: 800, cursor: 'pointer' }}
+                      >
+                        Limpiar selección
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                      {editSocioFormData.rutas.map(rCode => (
+                        <span
+                          key={rCode}
+                          style={{
+                            background: 'var(--primary-burgundy)',
+                            color: '#ffffff',
+                            padding: '0.2rem 0.5rem',
+                            borderRadius: '999px',
+                            fontSize: '0.74rem',
+                            fontWeight: 800,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem'
+                          }}
+                        >
+                          📌 {rCode}
+                          <span
+                            onClick={() => removeSelectedRoute(rCode, true)}
+                            style={{ cursor: 'pointer', paddingLeft: '0.2rem', opacity: 0.8 }}
+                            title="Quitar esta ruta"
+                          >
+                            ✕
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Lista Scrollable de Rutas Filtradas */}
                 <div style={{
-                  maxHeight: '160px',
+                  maxHeight: '170px',
                   overflowY: 'auto',
                   border: '1px solid #cbd5e1',
                   borderRadius: 'var(--radius-sm)',
-                  padding: '0.75rem',
-                  background: 'rgba(255, 255, 255, 0.8)',
+                  padding: '0.6rem',
+                  background: '#ffffff',
                   display: 'flex',
                   flexWrap: 'wrap',
-                  gap: '0.5rem'
+                  gap: '0.4rem'
                 }}>
-                  {routes && routes.map(r => {
-                    const rCode = r.codigo || r.lugarPrincipal;
-                    const isSelected = (editSocioFormData.rutas || []).includes(rCode);
-                    return (
-                      <button
-                        type="button"
-                        key={r.id}
-                        onClick={() => toggleRouteForSocio(rCode, true)}
-                        style={{
-                          padding: '0.4rem 0.75rem',
-                          borderRadius: 'var(--radius-sm)',
-                          fontSize: '0.82rem',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          border: isSelected ? '1px solid var(--primary-burgundy)' : '1px solid #cbd5e1',
-                          background: isSelected ? 'var(--primary-burgundy)' : '#ffffff',
-                          color: isSelected ? '#ffffff' : '#334155',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.35rem',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        {isSelected ? '✓' : '+'} {r.codigo ? `[${r.codigo}] ` : ''}{r.lugarPrincipal}
-                      </button>
-                    );
-                  })}
+                  {(() => {
+                    const filterTerm = editSocioRouteFilter.trim().toLowerCase();
+                    const filtered = routes ? routes.filter(r => {
+                      if (!filterTerm) return true;
+                      const code = (r.codigo || '').toLowerCase();
+                      const principal = (r.lugarPrincipal || '').toLowerCase();
+                      const ref = (r.lugarReferencia || '').toLowerCase();
+                      const dias = (r.dias || '').toLowerCase();
+                      return code.includes(filterTerm) || principal.includes(filterTerm) || ref.includes(filterTerm) || dias.includes(filterTerm);
+                    }) : [];
+
+                    if (filtered.length === 0) {
+                      return (
+                        <div style={{ width: '100%', textAlign: 'center', padding: '0.8rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                          No se encontraron rutas que coincidan con "{editSocioRouteFilter}".
+                        </div>
+                      );
+                    }
+
+                    return filtered.map(r => {
+                      const rCode = r.codigo || r.lugarPrincipal;
+                      const isSelected = (editSocioFormData.rutas || []).includes(rCode);
+                      return (
+                        <button
+                          type="button"
+                          key={r.id}
+                          onClick={() => toggleRouteForSocio(rCode, true)}
+                          style={{
+                            padding: '0.4rem 0.7rem',
+                            borderRadius: 'var(--radius-sm)',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            border: isSelected ? '1.5px solid var(--primary-burgundy)' : '1px solid #cbd5e1',
+                            background: isSelected ? 'var(--primary-burgundy)' : '#f8fafc',
+                            color: isSelected ? '#ffffff' : '#334155',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          {isSelected ? '✓' : '+'} {r.codigo ? `[${r.codigo}] ` : ''}{r.lugarPrincipal}
+                        </button>
+                      );
+                    });
+                  })()}
                 </div>
-                {editSocioFormData.rutas && editSocioFormData.rutas.length > 0 && (
-                  <div style={{ fontSize: '0.78rem', color: 'var(--accent-crimson)', fontWeight: 700, marginTop: '0.35rem' }}>
-                    {editSocioFormData.rutas.length} ruta(s) seleccionada(s): {editSocioFormData.rutas.join(', ')}
-                  </div>
-                )}
               </div>
 
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
