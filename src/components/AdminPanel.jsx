@@ -77,8 +77,107 @@ export function getRouteImageSrc(url, lugarPrincipal = 'AMAIRANY EXPRESS') {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteConfig, onConfigUpdated }) {
-  const [activeSubTab, setActiveSubTab] = useState('upload'); // 'upload' | 'list' | 'sellers' | 'config'
+// HELPER DE MANEJO Y CÁLCULO DE FECHAS (dd/mm/yy)
+export function formatDDMMYY(date = new Date()) {
+  const d = String(date.getDate()).padStart(2, '0');
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const y = String(date.getFullYear()).slice(-2);
+  return `${d}/${m}/${y}`;
+}
+
+export function parseDDMMYY(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string') return null;
+  const clean = dateStr.trim();
+  const parts = clean.split('/');
+  if (parts.length !== 3) return null;
+  let day = parseInt(parts[0], 10);
+  let month = parseInt(parts[1], 10);
+  let year = parseInt(parts[2], 10);
+  if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
+  if (year < 100) year += 2000;
+  return new Date(year, month - 1, day);
+}
+
+export function calculateNextRouteDate(text, baseDate = new Date()) {
+  if (!text) return formatDDMMYY(baseDate);
+  const lower = text.toLowerCase();
+  
+  const daysMap = [
+    { name: 'domingo', num: 0 },
+    { name: 'lunes', num: 1 },
+    { name: 'martes', num: 2 },
+    { name: 'miercoles', num: 3 },
+    { name: 'miércoles', num: 3 },
+    { name: 'jueves', num: 4 },
+    { name: 'viernes', num: 5 },
+    { name: 'sabado', num: 6 },
+    { name: 'sábado', num: 6 },
+  ];
+
+  const matchedDays = daysMap.filter(d => lower.includes(d.name));
+  
+  if (matchedDays.length === 0) {
+    const parsed = parseDDMMYY(text);
+    if (parsed) {
+      const todayZero = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
+      return parsed >= todayZero ? formatDDMMYY(parsed) : formatDDMMYY(baseDate);
+    }
+    return formatDDMMYY(baseDate);
+  }
+
+  const today = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
+  const currentDayNum = today.getDay();
+
+  let minDaysAhead = 999;
+  matchedDays.forEach(d => {
+    let diff = d.num - currentDayNum;
+    if (diff <= 0) {
+      diff += 7;
+    }
+    if (diff < minDaysAhead) {
+      minDaysAhead = diff;
+    }
+  });
+
+  const nextDate = new Date(today);
+  nextDate.setDate(today.getDate() + minDaysAhead);
+  return formatDDMMYY(nextDate);
+}
+
+export function isDateTodayOrFuture(dateStr, baseDate = new Date()) {
+  const parsed = parseDDMMYY(dateStr);
+  if (!parsed) return true;
+  const today = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
+  return parsed >= today;
+}
+
+export function checkPackageBelongsToSocio(pkg, socioRoutesList, routesList) {
+  if (!socioRoutesList || socioRoutesList.length === 0) return false;
+  const destLower = (pkg.destino || '').toLowerCase();
+  
+  return socioRoutesList.some(rCode => {
+    if (!rCode) return false;
+    const codeLower = rCode.toLowerCase().trim();
+    if (destLower.includes(codeLower)) return true;
+    
+    const rObj = routesList ? routesList.find(r => (r.codigo || '').toLowerCase().trim() === codeLower || (r.lugarPrincipal || '').toLowerCase().trim() === codeLower) : null;
+    if (rObj) {
+      if (rObj.lugarPrincipal && destLower.includes(rObj.lugarPrincipal.toLowerCase())) return true;
+      if (rObj.lugarReferencia && destLower.includes(rObj.lugarReferencia.toLowerCase())) return true;
+    }
+    return false;
+  });
+}
+
+export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminUser, siteConfig, onConfigUpdated }) {
+  const isSocioRole = adminUser?.role === 'SOCIO';
+  const [activeSubTab, setActiveSubTab] = useState(isSocioRole ? 'dispatch' : 'upload');
+
+  useEffect(() => {
+    if (isSocioRole && activeSubTab !== 'dispatch') {
+      setActiveSubTab('dispatch');
+    }
+  }, [isSocioRole, activeSubTab]);
 
   // Estado para la actualización del Logo
   const [logoFile, setLogoFile] = useState(null);
@@ -752,6 +851,17 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteCo
         }
       }
 
+      // Calcular fecha de entrega automática en formato dd/mm/yy para el próximo día programado
+      let calculatedDeliveryDate = formatDDMMYY(new Date());
+      if (result.fechaEntrega) {
+        calculatedDeliveryDate = calculateNextRouteDate(result.fechaEntrega);
+      } else if (matchedDestino && routes && routes.length > 0) {
+        const matchedRouteObj = routes.find(r => `${r.lugarPrincipal}${r.lugarReferencia ? ' - ' + r.lugarReferencia : ''}` === matchedDestino);
+        if (matchedRouteObj && matchedRouteObj.dias) {
+          calculatedDeliveryDate = calculateNextRouteDate(matchedRouteObj.dias);
+        }
+      }
+
       setPackageFormData(prev => ({
         ...prev,
         cliente: result.cliente || prev.cliente,
@@ -761,7 +871,7 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteCo
         envio: envioVal,
         total: totalVal,
         telefono: result.telefono || prev.telefono,
-        fechaEntrega: result.fechaEntrega || prev.fechaEntrega || getTodayFormattedDate(),
+        fechaEntrega: calculatedDeliveryDate,
         imagenUrl: packageFilePreview || result.imagenUrl || prev.imagenUrl
       }));
     } catch (err) {
@@ -792,6 +902,13 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteCo
       setNotification({ type: 'error', text: 'El teléfono de contacto es obligatorio.' });
       return;
     }
+    if (packageFormData.fechaEntrega && !isDateTodayOrFuture(packageFormData.fechaEntrega)) {
+      setNotification({
+        type: 'error',
+        text: `⚠️ No se puede recepcionar: La fecha de entrega ("${packageFormData.fechaEntrega}") no puede ser anterior a la fecha actual (${formatDDMMYY(new Date())}).`
+      });
+      return;
+    }
 
     const finalPayload = {
       ...packageFormData,
@@ -812,7 +929,7 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteCo
         envio: 0,
         total: 0,
         telefono: '',
-        fechaEntrega: getTodayFormattedDate(),
+        fechaEntrega: formatDDMMYY(new Date()),
         imagenUrl: '',
         tipoPago: 'EFECTIVO'
       });
@@ -1074,100 +1191,117 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteCo
 
         {/* Sub Tab Buttons */}
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', width: '100%', maxWidth: 'max-content' }}>
-          <button
-            onClick={() => setActiveSubTab('upload')}
-            className={activeSubTab === 'upload' ? 'btn btn-primary' : 'btn btn-outline-white'}
-            style={{ flexGrow: 1 }}
-          >
-            <Upload size={18} />
-            Nueva Ruta
-          </button>
-          <button
-            onClick={() => setActiveSubTab('list')}
-            className={activeSubTab === 'list' ? 'btn btn-primary' : 'btn btn-outline-white'}
-            style={{ flexGrow: 1 }}
-          >
-            <Database size={18} />
-            Mantenimiento ({routes.length})
-          </button>
-          <button
-            onClick={() => {
-              setActiveSubTab('sellers');
-              loadSellers();
-            }}
-            className={activeSubTab === 'sellers' ? 'btn btn-primary' : 'btn btn-outline-white'}
-            style={{ flexGrow: 1 }}
-          >
-            <Users size={18} />
-            Clientes Vendedores ({sellers.length})
-          </button>
-          <button
-            onClick={() => {
-              setActiveSubTab('socios');
-              loadSocios();
-              if (onRefreshRoutes) onRefreshRoutes();
-            }}
-            className={activeSubTab === 'socios' ? 'btn btn-primary' : 'btn btn-outline-white'}
-            style={{ flexGrow: 1 }}
-          >
-            <Users size={18} />
-            Socios / Repartidores ({socios.length})
-          </button>
-          <button
-            onClick={() => {
-              setActiveSubTab('packages');
-              loadPackages();
-              loadSellers();
-            }}
-            className={activeSubTab === 'packages' ? 'btn btn-primary' : 'btn btn-outline-white'}
-            style={{ flexGrow: 1 }}
-          >
-            <Package size={18} />
-            Ingreso de Paquetes (Casillero)
-          </button>
-          <button
-            onClick={() => {
-              setActiveSubTab('dispatch');
-              loadPackages();
-            }}
-            className={activeSubTab === 'dispatch' ? 'btn btn-primary' : 'btn btn-outline-white'}
-            style={{ flexGrow: 1 }}
-          >
-            <Truck size={18} />
-            Despacho y Entrega
-          </button>
-          <button
-            onClick={() => {
-              setActiveSubTab('settlement');
-              loadPackages();
-              loadPlanillas();
-            }}
-            className={activeSubTab === 'settlement' ? 'btn btn-primary' : 'btn btn-outline-white'}
-            style={{ flexGrow: 1 }}
-          >
-            <DollarSign size={18} />
-            Liquidación y Planillas
-          </button>
-          <button
-            onClick={() => {
-              setActiveSubTab('dashboard');
-              loadPackages();
-              loadPlanillas();
-            }}
-            className={activeSubTab === 'dashboard' ? 'btn btn-primary' : 'btn btn-outline-white'}
-            style={{ flexGrow: 1 }}
-          >
-            <BarChart3 size={18} />
-            Dashboard
-          </button>
-          <button
-            onClick={() => setActiveSubTab('config')}
-            className={activeSubTab === 'config' ? 'btn btn-primary' : 'btn btn-outline-white'}
-            style={{ flexGrow: 1 }}
-          >
-            <ImageIcon size={18} />
-            Logo y Marca
-          </button>
+          {isSocioRole ? (
+            <button
+              onClick={() => {
+                setActiveSubTab('dispatch');
+                loadPackages();
+                loadSocios();
+              }}
+              className="btn btn-primary"
+              style={{ flexGrow: 1, padding: '0.75rem 1.5rem', fontSize: '1rem', fontWeight: 800 }}
+            >
+              <Truck size={20} />
+              Despacho y Entrega (Acceso Socio)
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={() => setActiveSubTab('upload')}
+                className={activeSubTab === 'upload' ? 'btn btn-primary' : 'btn btn-outline-white'}
+                style={{ flexGrow: 1 }}
+              >
+                <Upload size={18} />
+                Nueva Ruta
+              </button>
+              <button
+                onClick={() => setActiveSubTab('list')}
+                className={activeSubTab === 'list' ? 'btn btn-primary' : 'btn btn-outline-white'}
+                style={{ flexGrow: 1 }}
+              >
+                <Database size={18} />
+                Mantenimiento ({routes.length})
+              </button>
+              <button
+                onClick={() => {
+                  setActiveSubTab('sellers');
+                  loadSellers();
+                }}
+                className={activeSubTab === 'sellers' ? 'btn btn-primary' : 'btn btn-outline-white'}
+                style={{ flexGrow: 1 }}
+              >
+                <Users size={18} />
+                Clientes Vendedores ({sellers.length})
+              </button>
+              <button
+                onClick={() => {
+                  setActiveSubTab('socios');
+                  loadSocios();
+                  if (onRefreshRoutes) onRefreshRoutes();
+                }}
+                className={activeSubTab === 'socios' ? 'btn btn-primary' : 'btn btn-outline-white'}
+                style={{ flexGrow: 1 }}
+              >
+                <Users size={18} />
+                Socios / Repartidores ({socios.length})
+              </button>
+              <button
+                onClick={() => {
+                  setActiveSubTab('packages');
+                  loadPackages();
+                  loadSellers();
+                }}
+                className={activeSubTab === 'packages' ? 'btn btn-primary' : 'btn btn-outline-white'}
+                style={{ flexGrow: 1 }}
+              >
+                <Package size={18} />
+                Ingreso de Paquetes (Casillero)
+              </button>
+              <button
+                onClick={() => {
+                  setActiveSubTab('dispatch');
+                  loadPackages();
+                }}
+                className={activeSubTab === 'dispatch' ? 'btn btn-primary' : 'btn btn-outline-white'}
+                style={{ flexGrow: 1 }}
+              >
+                <Truck size={18} />
+                Despacho y Entrega
+              </button>
+              <button
+                onClick={() => {
+                  setActiveSubTab('settlement');
+                  loadPackages();
+                  loadPlanillas();
+                }}
+                className={activeSubTab === 'settlement' ? 'btn btn-primary' : 'btn btn-outline-white'}
+                style={{ flexGrow: 1 }}
+              >
+                <DollarSign size={18} />
+                Liquidación y Planillas
+              </button>
+              <button
+                onClick={() => {
+                  setActiveSubTab('dashboard');
+                  loadPackages();
+                  loadPlanillas();
+                }}
+                className={activeSubTab === 'dashboard' ? 'btn btn-primary' : 'btn btn-outline-white'}
+                style={{ flexGrow: 1 }}
+              >
+                <BarChart3 size={18} />
+                Dashboard
+              </button>
+              <button
+                onClick={() => setActiveSubTab('config')}
+                className={activeSubTab === 'config' ? 'btn btn-primary' : 'btn btn-outline-white'}
+                style={{ flexGrow: 1 }}
+              >
+                <ImageIcon size={18} />
+                Logo y Marca
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -2706,7 +2840,10 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteCo
                         <select
                           onChange={(e) => {
                             if (e.target.value) {
-                              setPackageFormData(prev => ({ ...prev, destino: e.target.value }));
+                              const selVal = e.target.value;
+                              const matchedR = routes.find(r => `${r.lugarPrincipal}${r.lugarReferencia ? ' - ' + r.lugarReferencia : ''}` === selVal || r.lugarPrincipal === selVal);
+                              const calculatedDate = matchedR && matchedR.dias ? calculateNextRouteDate(matchedR.dias) : formatDDMMYY(new Date());
+                              setPackageFormData(prev => ({ ...prev, destino: selVal, fechaEntrega: calculatedDate }));
                             }
                           }}
                           className="select-control"
@@ -3292,33 +3429,148 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteCo
               </button>
 
               {/* Dropdown de Selección Rápida para Recepcionados Pendientes */}
-              {packages && packages.filter(p => p.estado === 'RECEPCIONADO').length > 0 && (
-                <select
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      setDispatchCodeSearch(e.target.value);
-                      const found = packages.find(p => p.codigo === e.target.value);
-                      if (found) {
-                        setDispatchPackage(found);
-                        setDispatchNotification({ type: 'success', text: `¡Paquete ${found.codigo} seleccionado!` });
-                      }
-                    }
-                  }}
-                  className="select-control"
-                  style={{ width: 'auto', minWidth: '240px', fontSize: '0.85rem' }}
-                >
-                  <option value="">-- Paquetes Recepcionados Pendientes ({packages.filter(p => p.estado === 'RECEPCIONADO').length}) --</option>
-                  {packages
-                    .filter(p => p.estado === 'RECEPCIONADO')
-                    .map(p => (
-                      <option key={p.id} value={p.codigo}>
-                        {p.codigo} - {p.cliente} ({p.destino})
-                      </option>
-                    ))
+              {(() => {
+                const currentSocio = isSocioRole ? socios.find(s => (s.correo || '').toLowerCase().trim() === (adminUser?.email || '').toLowerCase().trim()) : null;
+                const socioRoutesList = currentSocio ? (currentSocio.rutas || currentSocio.ruta || '').split(',').map(r => r.trim()).filter(Boolean) : [];
+                const filteredDispatchPackages = (packages || []).filter(p => {
+                  if (p.estado !== 'RECEPCIONADO') return false;
+                  if (p.fechaEntrega && !isDateTodayOrFuture(p.fechaEntrega)) return false;
+                  if (isSocioRole) {
+                    return checkPackageBelongsToSocio(p, socioRoutesList, routes);
                   }
-                </select>
-              )}
+                  return true;
+                });
+
+                return filteredDispatchPackages.length > 0 ? (
+                  <select
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        setDispatchCodeSearch(e.target.value);
+                        const found = filteredDispatchPackages.find(p => p.codigo === e.target.value);
+                        if (found) {
+                          setDispatchPackage(found);
+                          setDispatchNotification({ type: 'success', text: `¡Paquete ${found.codigo} seleccionado!` });
+                        }
+                      }
+                    }}
+                    className="select-control"
+                    style={{ width: 'auto', minWidth: '240px', fontSize: '0.85rem' }}
+                  >
+                    <option value="">-- Paquetes Pendientes ({filteredDispatchPackages.length}) --</option>
+                    {filteredDispatchPackages.map(p => (
+                      <option key={p.id} value={p.codigo}>
+                        {p.codigo} - {p.cliente} ({p.destino}) - Fecha: {p.fechaEntrega || 'Pendiente'}
+                      </option>
+                    ))}
+                  </select>
+                ) : null;
+              })()}
             </form>
+          </div>
+
+          {/* Tabla de Paquetes Asignados de la Ruta del Socio */}
+          <div style={{
+            background: '#ffffff',
+            borderRadius: 'var(--radius-lg)',
+            padding: '1.5rem',
+            boxShadow: 'var(--shadow-md)',
+            border: '1px solid var(--border-light)'
+          }}>
+            {(() => {
+              const currentSocio = isSocioRole ? socios.find(s => (s.correo || '').toLowerCase().trim() === (adminUser?.email || '').toLowerCase().trim()) : null;
+              const socioRoutesList = currentSocio ? (currentSocio.rutas || currentSocio.ruta || '').split(',').map(r => r.trim()).filter(Boolean) : [];
+              const filteredDispatchPackages = (packages || []).filter(p => {
+                if (p.estado !== 'RECEPCIONADO') return false;
+                if (p.fechaEntrega && !isDateTodayOrFuture(p.fechaEntrega)) return false;
+                if (isSocioRole) {
+                  return checkPackageBelongsToSocio(p, socioRoutesList, routes);
+                }
+                return true;
+              });
+
+              return (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
+                    <div>
+                      <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--primary-burgundy)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Package size={20} />
+                        {isSocioRole 
+                          ? `Paquetes Asignados a tu Ruta (${filteredDispatchPackages.length})` 
+                          : `Paquetes Recepcionados Listos para Despacho (${filteredDispatchPackages.length})`}
+                      </h3>
+                      {isSocioRole && (
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0.3rem 0 0 0' }}>
+                          Socio: <strong>{currentSocio ? currentSocio.nombre : (adminUser?.name || adminUser?.email)}</strong> | Rutas: <strong>{socioRoutesList.join(', ') || 'Sin rutas'}</strong>
+                        </p>
+                      )}
+                    </div>
+
+                    <span className="badge badge-primary" style={{ fontSize: '0.8rem' }}>
+                      📅 Fechas Válidas (Hoy y Futuras)
+                    </span>
+                  </div>
+
+                  {filteredDispatchPackages.length === 0 ? (
+                    <div style={{ padding: '2.5rem', textAlign: 'center', background: '#f8fafc', borderRadius: 'var(--radius-md)', color: 'var(--text-muted)' }}>
+                      <Truck size={36} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
+                      <p style={{ fontWeight: 700, margin: 0 }}>No hay paquetes recepcionados pendientes asignados a tu ruta.</p>
+                    </div>
+                  ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem', textAlign: 'left' }}>
+                        <thead>
+                          <tr style={{ background: 'rgba(107, 0, 56, 0.08)', color: 'var(--primary-burgundy)', borderBottom: '2px solid var(--primary-burgundy)' }}>
+                            <th style={{ padding: '0.75rem 1rem' }}>Código</th>
+                            <th style={{ padding: '0.75rem 1rem' }}>Cliente (Destinatario)</th>
+                            <th style={{ padding: '0.75rem 1rem' }}>Destino / Ruta</th>
+                            <th style={{ padding: '0.75rem 1rem' }}>Fecha Entrega</th>
+                            <th style={{ padding: '0.75rem 1rem' }}>Total ($)</th>
+                            <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Acción</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredDispatchPackages.map(pkg => (
+                            <tr key={pkg.id} style={{ borderBottom: '1px solid #e2e8f0', background: dispatchPackage?.id === pkg.id ? '#faf5ff' : 'transparent' }}>
+                              <td style={{ padding: '0.75rem 1rem' }}>
+                                <span className="badge" style={{ background: 'var(--accent-gradient)', color: '#fff', fontWeight: 800 }}>
+                                  {pkg.codigo}
+                                </span>
+                              </td>
+                              <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--primary-burgundy)' }}>
+                                {pkg.cliente}
+                                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 400 }}>Tel: {pkg.telefono}</div>
+                              </td>
+                              <td style={{ padding: '0.75rem 1rem' }}>{pkg.destino}</td>
+                              <td style={{ padding: '0.75rem 1rem' }}>
+                                <span style={{ padding: '0.2rem 0.6rem', borderRadius: '12px', background: '#fef3c7', color: '#92400e', fontWeight: 800, fontSize: '0.8rem' }}>
+                                  📅 {pkg.fechaEntrega || 'Hoy'}
+                                </span>
+                              </td>
+                              <td style={{ padding: '0.75rem 1rem', fontWeight: 800, color: 'var(--primary-burgundy)' }}>
+                                ${(parseFloat(pkg.total) || 0).toFixed(2)} ({pkg.tipoPago})
+                              </td>
+                              <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
+                                <button
+                                  onClick={() => {
+                                    setDispatchCodeSearch(pkg.codigo);
+                                    setDispatchPackage(pkg);
+                                    setDispatchNotification({ type: 'success', text: `¡Paquete ${pkg.codigo} seleccionado para entrega!` });
+                                  }}
+                                  className="btn btn-primary"
+                                  style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+                                >
+                                  <Truck size={14} /> Seleccionar y Entregar
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
 
           {/* Ficha y Formulario de Entrega si el Paquete fue Encontrado */}

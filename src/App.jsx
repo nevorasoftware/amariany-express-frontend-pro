@@ -207,6 +207,7 @@ export default function App() {
             routes={routes} 
             onRefreshRoutes={loadRoutes} 
             adminToken={adminToken} 
+            adminUser={adminUser}
             siteConfig={siteConfig}
             onConfigUpdated={(cfg) => setSiteConfig(cfg)}
           />
