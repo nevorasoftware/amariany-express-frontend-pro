@@ -55,13 +55,26 @@ export default function RouteCard({ route, onSelect }) {
           onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1.0)'}
         />
 
-        {/* Tipo de Punto Overlay Badge */}
+        {/* Tipo de Punto & Código Overlay Badge */}
         <div style={{
           position: 'absolute',
           top: '1rem',
           left: '1rem',
-          zIndex: 2
+          zIndex: 2,
+          display: 'flex',
+          gap: '0.5rem',
+          flexWrap: 'wrap'
         }}>
+          {route.codigo && (
+            <span className="badge" style={{
+              background: 'var(--primary-burgundy, #4C0070)',
+              color: '#ffffff',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              fontWeight: 800
+            }}>
+              {route.codigo}
+            </span>
+          )}
           <span className="badge" style={{
             background: 'var(--accent-gradient)',
             color: '#ffffff',

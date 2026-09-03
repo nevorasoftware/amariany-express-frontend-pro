@@ -390,4 +390,67 @@ export async function liquidarPackageIndividualApi(id, estadoLiquidacion, token)
   return data.data;
 }
 
+// API DE SOCIOS (REPARTIDORES / SOCIOS CON RUTA)
+export async function fetchSocios(search = '') {
+  const query = new URLSearchParams();
+  if (search) query.append('search', search);
+
+  const res = await smartFetch(`/socios?${query.toString()}`);
+  if (!res.ok) {
+    throw new Error('Error al obtener la lista de socios.');
+  }
+  const data = await safeParseJson(res);
+  return data.data || [];
+}
+
+export async function saveSocio(socioData, token) {
+  const res = await smartFetch('/socios', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(socioData)
+  });
+
+  const data = await safeParseJson(res);
+  if (!res.ok) {
+    throw new Error(data.error || 'Error al registrar el socio');
+  }
+  return data.data;
+}
+
+export async function updateSocio(id, socioData, token) {
+  const res = await smartFetch(`/socios/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(socioData)
+  });
+
+  const data = await safeParseJson(res);
+  if (!res.ok) {
+    throw new Error(data.error || 'Error al actualizar el socio');
+  }
+  return data.data;
+}
+
+export async function deleteSocio(id, token) {
+  const res = await smartFetch(`/socios/${id}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!res.ok) {
+    const data = await safeParseJson(res);
+    throw new Error(data.error || 'Error al eliminar el socio');
+  }
+  return true;
+}
+
+
 

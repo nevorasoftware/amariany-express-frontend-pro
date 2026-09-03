@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, Sparkles, Database, Trash2, Edit3, CheckCircle2, AlertCircle, Plus, RefreshCw, Eye, Image as ImageIcon, MapPin, Calendar, Clock, Layers, X, Save, Palette, Users, Search, UserPlus, Phone, CreditCard, Store, Mail, FileText, Package, Box, DollarSign, Calendar as CalendarIcon, PhoneCall, Camera, Truck, Download, FileSpreadsheet, BarChart3, PieChart, TrendingUp } from 'lucide-react';
-import { uploadImageAndExtractAI, saveRoute, updateRoute, deleteRoute, uploadLogo, fetchSellers, saveSeller, updateSeller, deleteSeller, fetchPackages, fetchPackageByCode, uploadDeliveryImage, analyzePackageImage, savePackage, updatePackage, deletePackage, fetchPlanillas, savePlanilla, updatePlanillaStatus, liquidarPackageIndividualApi } from '../services/api';
+import { uploadImageAndExtractAI, saveRoute, updateRoute, deleteRoute, uploadLogo, fetchSellers, saveSeller, updateSeller, deleteSeller, fetchPackages, fetchPackageByCode, uploadDeliveryImage, analyzePackageImage, savePackage, updatePackage, deletePackage, fetchPlanillas, savePlanilla, updatePlanillaStatus, liquidarPackageIndividualApi, fetchSocios, saveSocio, updateSocio, deleteSocio } from '../services/api';
 import { elSalvadorData } from '../data/elSalvadorData';
 
 // Helper para exportar arreglos a CSV compatible con Microsoft Excel (BOM UTF-8)
@@ -224,6 +224,113 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteCo
       loadSellers();
     } catch (err) {
       setNotification({ type: 'error', text: 'Error al eliminar vendedor: ' + err.message });
+    }
+  };
+
+  // ESTADOS Y FUNCIONES PARA SOCIOS (REPARTIDORES / SOCIOS CON RUTA)
+  const [socios, setSocios] = useState([]);
+  const [sociosLoading, setSociosLoading] = useState(false);
+  const [socioSearch, setSocioSearch] = useState('');
+  const [socioFormData, setSocioFormData] = useState({
+    nombre: '',
+    telefono: '',
+    correo: '',
+    dui: '',
+    ruta: ''
+  });
+  const [editingSocio, setEditingSocio] = useState(null);
+  const [editSocioFormData, setEditSocioFormData] = useState(null);
+
+  const loadSocios = async (search = socioSearch) => {
+    setSociosLoading(true);
+    try {
+      const data = await fetchSocios(search);
+      setSocios(data);
+    } catch (err) {
+      console.error("Error al cargar socios:", err);
+    } finally {
+      setSociosLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeSubTab === 'socios') {
+      loadSocios();
+    }
+  }, [activeSubTab]);
+
+  const validateSocioForm = (data) => {
+    if (!data.nombre || !data.nombre.trim()) return '⚠️ Complete el Nombre Completo del Socio.';
+    if (data.dui && data.dui.trim() && !/^\d{8}-\d{1}$/.test(data.dui.trim())) return '⚠️ Formato de DUI inválido: Debe ser de 8 números, un guión y 1 número (Ej: 00000000-0).';
+    if (data.correo && data.correo.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.correo.trim())) return '⚠️ Correo Electrónico inválido (Ej: usuario@dominio.com).';
+    if (data.telefono && data.telefono.trim() && !/^\d{4}-\d{4}$/.test(data.telefono.trim())) return '⚠️ Formato de Teléfono inválido: Debe ser de 4 números, un guión y 4 números (Ej: 7788-9900).';
+    return null;
+  };
+
+  const handleCreateSocio = async (e) => {
+    e.preventDefault();
+    const errText = validateSocioForm(socioFormData);
+    if (errText) {
+      setNotification({ type: 'error', text: errText });
+      return;
+    }
+    setSaveLoading(true);
+    try {
+      const created = await saveSocio(socioFormData, adminToken);
+      const codeMsg = created?.codigo ? ` con código de socio ${created.codigo}` : '';
+      setNotification({ type: 'success', text: `¡Socio "${created.nombre}" registrado exitosamente${codeMsg}!` });
+      setSocioFormData({ nombre: '', telefono: '', correo: '', dui: '', ruta: '' });
+      loadSocios();
+    } catch (err) {
+      setNotification({ type: 'error', text: 'Error al registrar socio: ' + err.message });
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
+  const handleStartEditSocio = (socio) => {
+    setEditingSocio(socio);
+    setEditSocioFormData({
+      id: socio.id,
+      codigo: socio.codigo || '',
+      nombre: socio.nombre || '',
+      telefono: socio.telefono || '',
+      correo: socio.correo || '',
+      dui: socio.dui || '',
+      ruta: socio.ruta || ''
+    });
+  };
+
+  const handleSaveEditedSocio = async (e) => {
+    e.preventDefault();
+    if (!editSocioFormData) return;
+    const errText = validateSocioForm(editSocioFormData);
+    if (errText) {
+      setNotification({ type: 'error', text: errText });
+      return;
+    }
+    setSaveLoading(true);
+    try {
+      await updateSocio(editSocioFormData.id, editSocioFormData, adminToken);
+      setNotification({ type: 'success', text: `¡Socio "${editSocioFormData.nombre}" actualizado con éxito!` });
+      setEditingSocio(null);
+      setEditSocioFormData(null);
+      loadSocios();
+    } catch (err) {
+      setNotification({ type: 'error', text: 'Error al actualizar socio: ' + err.message });
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
+  const handleDeleteSocio = async (id) => {
+    if (!window.confirm('¿Está seguro de eliminar este socio?')) return;
+    try {
+      await deleteSocio(id, adminToken);
+      setNotification({ type: 'success', text: '¡Socio eliminado exitosamente!' });
+      loadSocios();
+    } catch (err) {
+      setNotification({ type: 'error', text: 'Error al eliminar socio: ' + err.message });
     }
   };
 
@@ -949,6 +1056,18 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteCo
           </button>
           <button
             onClick={() => {
+              setActiveSubTab('socios');
+              loadSocios();
+              if (onRefreshRoutes) onRefreshRoutes();
+            }}
+            className={activeSubTab === 'socios' ? 'btn btn-primary' : 'btn btn-outline-white'}
+            style={{ flexGrow: 1 }}
+          >
+            <Users size={18} />
+            Socios / Repartidores ({socios.length})
+          </button>
+          <button
+            onClick={() => {
               setActiveSubTab('packages');
               loadPackages();
               loadSellers();
@@ -1291,6 +1410,7 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteCo
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', textAlign: 'left' }}>
               <thead>
                 <tr style={{ background: 'rgba(107, 0, 56, 0.08)', color: 'var(--primary-burgundy)', borderBottom: '2px solid var(--primary-burgundy)' }}>
+                  <th style={{ padding: '1rem' }}>Código</th>
                   <th style={{ padding: '1rem' }}>Imagen</th>
                   <th style={{ padding: '1rem' }}>Lugar Principal</th>
                   <th style={{ padding: '1rem' }}>Días y Horarios</th>
@@ -1305,6 +1425,11 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteCo
 
                   return (
                     <tr key={r.id || idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                      <td style={{ padding: '1rem' }}>
+                        <span className="badge" style={{ background: 'var(--primary-burgundy)', color: '#ffffff', fontWeight: 800 }}>
+                          {r.codigo || 'R-###'}
+                        </span>
+                      </td>
                       <td style={{ padding: '1rem' }}>
                         <img
                           src={imgSrc}
@@ -1547,6 +1672,7 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteCo
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem', textAlign: 'left' }}>
                 <thead>
                   <tr style={{ background: 'rgba(107, 0, 56, 0.08)', color: 'var(--primary-burgundy)', borderBottom: '2px solid var(--primary-burgundy)' }}>
+                    <th style={{ padding: '0.85rem 1rem' }}>Código</th>
                     <th style={{ padding: '0.85rem 1rem' }}>Nombre / Tienda</th>
                     <th style={{ padding: '0.85rem 1rem' }}>DUI</th>
                     <th style={{ padding: '0.85rem 1rem' }}>Contacto (WhatsApp / Correo)</th>
@@ -1559,13 +1685,18 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteCo
                 <tbody>
                   {sellers.length === 0 ? (
                     <tr>
-                      <td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                      <td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
                         {sellersLoading ? 'Cargando clientes...' : 'No se encontraron clientes/vendedores registrados.'}
                       </td>
                     </tr>
                   ) : (
                     sellers.map((s) => (
                       <tr key={s.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <td style={{ padding: '0.85rem 1rem' }}>
+                          <span className="badge" style={{ background: 'var(--accent-gradient)', color: '#ffffff', fontWeight: 800 }}>
+                            {s.codigo || 'V-###'}
+                          </span>
+                        </td>
                         <td style={{ padding: '0.85rem 1rem' }}>
                           <strong style={{ fontSize: '0.98rem', color: 'var(--primary-burgundy)' }}>{s.nombre}</strong>
                           {s.tienda && (
@@ -1649,6 +1780,349 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteCo
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB: SOCIOS / REPARTIDORES CON RUTA */}
+      {activeSubTab === 'socios' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          {/* Formulario de Registro de Nuevo Socio */}
+          <div className="glass-panel" style={{ padding: '2rem' }}>
+            <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--primary-burgundy)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <UserPlus size={24} /> Registrar Nuevo Socio / Repartidor
+            </h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+              Cada socio registrado obtendrá automáticamente un código único correlativo de formato <strong>S-###</strong> (3 posiciones únicas) y tendrá una ruta asignada.
+            </p>
+
+            <form onSubmit={handleCreateSocio} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary-burgundy)', marginBottom: '0.3rem' }}>
+                  Nombre Completo del Socio *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej: Carlos Alberto Mendoza"
+                  value={socioFormData.nombre}
+                  onChange={(e) => setSocioFormData(prev => ({ ...prev, nombre: e.target.value }))}
+                  className="input-control"
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary-burgundy)', marginBottom: '0.3rem' }}>
+                  Teléfono / WhatsApp
+                </label>
+                <input
+                  type="text"
+                  placeholder="7788-9900"
+                  maxLength={9}
+                  value={socioFormData.telefono}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, '').slice(0, 8);
+                    const formatted = raw.length > 4 ? `${raw.slice(0, 4)}-${raw.slice(4)}` : raw;
+                    setSocioFormData(prev => ({ ...prev, telefono: formatted }));
+                  }}
+                  className="input-control"
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary-burgundy)', marginBottom: '0.3rem' }}>
+                  Correo Electrónico
+                </label>
+                <input
+                  type="email"
+                  placeholder="socio@amairanyexpress.com"
+                  value={socioFormData.correo}
+                  onChange={(e) => setSocioFormData(prev => ({ ...prev, correo: e.target.value }))}
+                  className="input-control"
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary-burgundy)', marginBottom: '0.3rem' }}>
+                  DUI (Documento Único de Identidad)
+                </label>
+                <input
+                  type="text"
+                  maxLength={10}
+                  placeholder="00000000-0"
+                  value={socioFormData.dui}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, '').slice(0, 9);
+                    const formatted = raw.length > 8 ? `${raw.slice(0, 8)}-${raw.slice(8)}` : raw;
+                    setSocioFormData(prev => ({ ...prev, dui: formatted }));
+                  }}
+                  className="input-control"
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary-burgundy)', marginBottom: '0.3rem' }}>
+                  Ruta Asignada (Código o Nombre) *
+                </label>
+                <select
+                  value={socioFormData.ruta}
+                  onChange={(e) => setSocioFormData(prev => ({ ...prev, ruta: e.target.value }))}
+                  className="input-control"
+                  style={{ fontWeight: 700 }}
+                >
+                  <option value="">-- Seleccionar Ruta Asignada --</option>
+                  {routes && routes.map(r => (
+                    <option key={r.id} value={r.codigo || r.lugarPrincipal}>
+                      {r.codigo ? `[${r.codigo}] ` : ''}{r.lugarPrincipal} ({r.dias})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ gridColumn: '1 / -1', marginTop: '0.5rem' }}>
+                <button
+                  type="submit"
+                  disabled={saveLoading}
+                  className="btn btn-primary"
+                  style={{ width: '100%', justifyContent: 'center', padding: '0.85rem' }}
+                >
+                  {saveLoading ? <RefreshCw size={18} className="animate-spin" /> : <Save size={18} />}
+                  {saveLoading ? 'Guardando Socio...' : 'Registrar Socio con Código S-### y Ruta'}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Lista de Socios */}
+          <div className="glass-panel" style={{ padding: '2rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--primary-burgundy)' }}>
+                  Directorio de Socios / Repartidores ({socios.length})
+                </h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  Listado de socios registrados con su código único de socio (S-###) y ruta asignada.
+                </p>
+              </div>
+
+              <div style={{ position: 'relative', minWidth: '300px', flexGrow: 1, maxWidth: '450px' }}>
+                <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                <input
+                  type="text"
+                  placeholder="Buscar socio por Código (S-###), Nombre, DUI o Ruta..."
+                  value={socioSearch}
+                  onChange={(e) => {
+                    setSocioSearch(e.target.value);
+                    loadSocios(e.target.value);
+                  }}
+                  className="input-control"
+                  style={{ paddingLeft: '2.6rem' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ background: 'rgba(107, 0, 56, 0.08)', color: 'var(--primary-burgundy)', borderBottom: '2px solid var(--primary-burgundy)' }}>
+                    <th style={{ padding: '0.85rem 1rem' }}>Código Socio</th>
+                    <th style={{ padding: '0.85rem 1rem' }}>Nombre Completo</th>
+                    <th style={{ padding: '0.85rem 1rem' }}>Contacto (Teléfono / Correo)</th>
+                    <th style={{ padding: '0.85rem 1rem' }}>DUI</th>
+                    <th style={{ padding: '0.85rem 1rem' }}>Ruta Asignada</th>
+                    <th style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {socios.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                        {sociosLoading ? 'Cargando socios...' : 'No se encontraron socios registrados.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    socios.map((s) => (
+                      <tr key={s.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <td style={{ padding: '0.85rem 1rem' }}>
+                          <span className="badge" style={{ background: 'var(--primary-burgundy)', color: '#ffffff', fontWeight: 900, fontSize: '0.85rem', padding: '0.35rem 0.75rem' }}>
+                            {s.codigo || 'S-###'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '0.85rem 1rem' }}>
+                          <strong style={{ fontSize: '0.98rem', color: 'var(--primary-burgundy)' }}>{s.nombre}</strong>
+                        </td>
+                        <td style={{ padding: '0.85rem 1rem' }}>
+                          {s.telefono && <div style={{ fontWeight: 700, color: '#16a34a' }}>📞 {s.telefono}</div>}
+                          {s.correo && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>✉️ {s.correo}</div>}
+                          {!s.telefono && !s.correo && <span style={{ color: 'var(--text-muted)' }}>-</span>}
+                        </td>
+                        <td style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>{s.dui || 'N/A'}</td>
+                        <td style={{ padding: '0.85rem 1rem' }}>
+                          <span className="badge" style={{ background: 'var(--accent-gradient)', color: '#ffffff', fontWeight: 800 }}>
+                            📌 {s.ruta || 'Sin Ruta'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
+                          <div style={{ display: 'inline-flex', gap: '0.5rem' }}>
+                            <button
+                              onClick={() => handleStartEditSocio(s)}
+                              style={{
+                                background: 'var(--accent-gradient)',
+                                color: '#ffffff',
+                                border: 'none',
+                                padding: '0.4rem 0.75rem',
+                                borderRadius: 'var(--radius-sm)',
+                                cursor: 'pointer',
+                                fontWeight: 700,
+                                fontSize: '0.78rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.3rem'
+                              }}
+                            >
+                              <Edit3 size={14} /> Editar
+                            </button>
+                            <button
+                              onClick={() => handleDeleteSocio(s.id)}
+                              style={{
+                                background: '#fee2e2',
+                                color: '#dc2626',
+                                border: 'none',
+                                padding: '0.4rem 0.65rem',
+                                borderRadius: 'var(--radius-sm)',
+                                cursor: 'pointer',
+                                fontWeight: 700,
+                                fontSize: '0.78rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.3rem'
+                              }}
+                            >
+                              <Trash2 size={14} /> Eliminar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Edición de Socio */}
+      {editingSocio && editSocioFormData && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0, 0, 0, 0.6)',
+          backdropFilter: 'blur(5px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '1rem'
+        }}>
+          <div className="glass-panel" style={{ width: '100%', maxWidth: '580px', padding: '2rem', background: '#ffffff', borderRadius: 'var(--radius-lg)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--primary-burgundy)' }}>
+                Editar Socio [{editSocioFormData.codigo}]
+              </h3>
+              <button onClick={() => setEditingSocio(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                <X size={24} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditedSocio} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary-burgundy)', marginBottom: '0.3rem' }}>
+                  Nombre Completo
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editSocioFormData.nombre}
+                  onChange={(e) => setEditSocioFormData(prev => ({ ...prev, nombre: e.target.value }))}
+                  className="input-control"
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary-burgundy)', marginBottom: '0.3rem' }}>
+                  Teléfono / WhatsApp
+                </label>
+                <input
+                  type="text"
+                  maxLength={9}
+                  value={editSocioFormData.telefono}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, '').slice(0, 8);
+                    const formatted = raw.length > 4 ? `${raw.slice(0, 4)}-${raw.slice(4)}` : raw;
+                    setEditSocioFormData(prev => ({ ...prev, telefono: formatted }));
+                  }}
+                  className="input-control"
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary-burgundy)', marginBottom: '0.3rem' }}>
+                  Correo Electrónico
+                </label>
+                <input
+                  type="email"
+                  value={editSocioFormData.correo}
+                  onChange={(e) => setEditSocioFormData(prev => ({ ...prev, correo: e.target.value }))}
+                  className="input-control"
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary-burgundy)', marginBottom: '0.3rem' }}>
+                  DUI
+                </label>
+                <input
+                  type="text"
+                  maxLength={10}
+                  value={editSocioFormData.dui}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, '').slice(0, 9);
+                    const formatted = raw.length > 8 ? `${raw.slice(0, 8)}-${raw.slice(8)}` : raw;
+                    setEditSocioFormData(prev => ({ ...prev, dui: formatted }));
+                  }}
+                  className="input-control"
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary-burgundy)', marginBottom: '0.3rem' }}>
+                  Ruta Asignada
+                </label>
+                <select
+                  value={editSocioFormData.ruta}
+                  onChange={(e) => setEditSocioFormData(prev => ({ ...prev, ruta: e.target.value }))}
+                  className="input-control"
+                  style={{ fontWeight: 700 }}
+                >
+                  <option value="">-- Seleccionar Ruta Asignada --</option>
+                  {routes && routes.map(r => (
+                    <option key={r.id} value={r.codigo || r.lugarPrincipal}>
+                      {r.codigo ? `[${r.codigo}] ` : ''}{r.lugarPrincipal} ({r.dias})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                <button type="button" onClick={() => setEditingSocio(null)} className="btn btn-secondary" style={{ flex: 1 }}>
+                  Cancelar
+                </button>
+                <button type="submit" disabled={saveLoading} className="btn btn-primary" style={{ flex: 1 }}>
+                  {saveLoading ? 'Guardando...' : 'Guardar Cambios'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
