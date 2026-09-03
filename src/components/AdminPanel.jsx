@@ -153,13 +153,21 @@ export function isDateTodayOrFuture(dateStr, baseDate = new Date()) {
 
 export function checkPackageBelongsToSocio(pkg, socioRoutesList, routesList) {
   if (!socioRoutesList || socioRoutesList.length === 0) return false;
+
+  // 1. Verificación directa por la columna "rutaCodigo" (Ej: "R-OJB")
+  if (pkg.rutaCodigo) {
+    const pkgRutaClean = pkg.rutaCodigo.trim().toLowerCase();
+    const directMatch = socioRoutesList.some(rCode => rCode.trim().toLowerCase() === pkgRutaClean);
+    if (directMatch) return true;
+  }
+
+  // 2. Verificación secundaria por coincidencia en texto de destino o nombre de municipio
   const destLower = (pkg.destino || '').toLowerCase();
-  
   return socioRoutesList.some(rCode => {
     if (!rCode) return false;
     const codeLower = rCode.toLowerCase().trim();
     if (destLower.includes(codeLower)) return true;
-    
+
     const rObj = routesList ? routesList.find(r => (r.codigo || '').toLowerCase().trim() === codeLower || (r.lugarPrincipal || '').toLowerCase().trim() === codeLower) : null;
     if (rObj) {
       if (rObj.lugarPrincipal && destLower.includes(rObj.lugarPrincipal.toLowerCase())) return true;
