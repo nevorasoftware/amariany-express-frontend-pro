@@ -236,7 +236,7 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteCo
     telefono: '',
     correo: '',
     dui: '',
-    ruta: ''
+    rutas: []
   });
   const [editingSocio, setEditingSocio] = useState(null);
   const [editSocioFormData, setEditSocioFormData] = useState(null);
@@ -259,6 +259,24 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteCo
     }
   }, [activeSubTab]);
 
+  const toggleRouteForSocio = (routeCode, isEdit = false) => {
+    if (isEdit) {
+      setEditSocioFormData(prev => {
+        const current = prev.rutas || [];
+        const exists = current.includes(routeCode);
+        const updated = exists ? current.filter(r => r !== routeCode) : [...current, routeCode];
+        return { ...prev, rutas: updated };
+      });
+    } else {
+      setSocioFormData(prev => {
+        const current = prev.rutas || [];
+        const exists = current.includes(routeCode);
+        const updated = exists ? current.filter(r => r !== routeCode) : [...current, routeCode];
+        return { ...prev, rutas: updated };
+      });
+    }
+  };
+
   const validateSocioForm = (data) => {
     if (!data.nombre || !data.nombre.trim()) return '⚠️ Complete el Nombre Completo del Socio.';
     if (data.dui && data.dui.trim() && !/^\d{8}-\d{1}$/.test(data.dui.trim())) return '⚠️ Formato de DUI inválido: Debe ser de 8 números, un guión y 1 número (Ej: 00000000-0).';
@@ -279,7 +297,7 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteCo
       const created = await saveSocio(socioFormData, adminToken);
       const codeMsg = created?.codigo ? ` con código de socio ${created.codigo}` : '';
       setNotification({ type: 'success', text: `¡Socio "${created.nombre}" registrado exitosamente${codeMsg}!` });
-      setSocioFormData({ nombre: '', telefono: '', correo: '', dui: '', ruta: '' });
+      setSocioFormData({ nombre: '', telefono: '', correo: '', dui: '', rutas: [] });
       loadSocios();
     } catch (err) {
       setNotification({ type: 'error', text: 'Error al registrar socio: ' + err.message });
@@ -290,6 +308,11 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteCo
 
   const handleStartEditSocio = (socio) => {
     setEditingSocio(socio);
+    const rawRutas = socio.rutas || socio.ruta || '';
+    const rutasArray = rawRutas
+      ? rawRutas.split(',').map(r => r.trim()).filter(Boolean)
+      : [];
+
     setEditSocioFormData({
       id: socio.id,
       codigo: socio.codigo || '',
@@ -297,7 +320,7 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteCo
       telefono: socio.telefono || '',
       correo: socio.correo || '',
       dui: socio.dui || '',
-      ruta: socio.ruta || ''
+      rutas: rutasArray
     });
   };
 
@@ -1860,23 +1883,54 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteCo
                 />
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary-burgundy)', marginBottom: '0.3rem' }}>
-                  Ruta Asignada (Código o Nombre) *
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary-burgundy)', marginBottom: '0.5rem' }}>
+                  Rutas Asignadas (Seleccione una o varias rutas) *
                 </label>
-                <select
-                  value={socioFormData.ruta}
-                  onChange={(e) => setSocioFormData(prev => ({ ...prev, ruta: e.target.value }))}
-                  className="input-control"
-                  style={{ fontWeight: 700 }}
-                >
-                  <option value="">-- Seleccionar Ruta Asignada --</option>
-                  {routes && routes.map(r => (
-                    <option key={r.id} value={r.codigo || r.lugarPrincipal}>
-                      {r.codigo ? `[${r.codigo}] ` : ''}{r.lugarPrincipal} ({r.dias})
-                    </option>
-                  ))}
-                </select>
+                <div style={{
+                  maxHeight: '180px',
+                  overflowY: 'auto',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '0.75rem',
+                  background: 'rgba(255, 255, 255, 0.8)',
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '0.5rem'
+                }}>
+                  {routes && routes.map(r => {
+                    const rCode = r.codigo || r.lugarPrincipal;
+                    const isSelected = (socioFormData.rutas || []).includes(rCode);
+                    return (
+                      <button
+                        type="button"
+                        key={r.id}
+                        onClick={() => toggleRouteForSocio(rCode, false)}
+                        style={{
+                          padding: '0.4rem 0.75rem',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '0.82rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          border: isSelected ? '1px solid var(--primary-burgundy)' : '1px solid #cbd5e1',
+                          background: isSelected ? 'var(--primary-burgundy)' : '#ffffff',
+                          color: isSelected ? '#ffffff' : '#334155',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {isSelected ? '✓' : '+'} {r.codigo ? `[${r.codigo}] ` : ''}{r.lugarPrincipal}
+                      </button>
+                    );
+                  })}
+                </div>
+                {socioFormData.rutas && socioFormData.rutas.length > 0 && (
+                  <div style={{ fontSize: '0.78rem', color: 'var(--accent-crimson)', fontWeight: 700, marginTop: '0.35rem' }}>
+                    {socioFormData.rutas.length} ruta(s) seleccionada(s): {socioFormData.rutas.join(', ')}
+                  </div>
+                )}
               </div>
 
               <div style={{ gridColumn: '1 / -1', marginTop: '0.5rem' }}>
@@ -1887,7 +1941,7 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteCo
                   style={{ width: '100%', justifyContent: 'center', padding: '0.85rem' }}
                 >
                   {saveLoading ? <RefreshCw size={18} className="animate-spin" /> : <Save size={18} />}
-                  {saveLoading ? 'Guardando Socio...' : 'Registrar Socio con Código S-### y Ruta'}
+                  {saveLoading ? 'Guardando Socio...' : 'Registrar Socio con Código S-### y Rutas'}
                 </button>
               </div>
             </form>
@@ -1958,9 +2012,22 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteCo
                         </td>
                         <td style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>{s.dui || 'N/A'}</td>
                         <td style={{ padding: '0.85rem 1rem' }}>
-                          <span className="badge" style={{ background: 'var(--accent-gradient)', color: '#ffffff', fontWeight: 800 }}>
-                            📌 {s.ruta || 'Sin Ruta'}
-                          </span>
+                          {(() => {
+                            const raw = s.rutas || s.ruta || '';
+                            const assignedList = raw.split(',').map(r => r.trim()).filter(Boolean);
+                            if (assignedList.length === 0) {
+                              return <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>Sin Rutas</span>;
+                            }
+                            return (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                                {assignedList.map((rCode, i) => (
+                                  <span key={i} className="badge" style={{ background: 'var(--accent-gradient)', color: '#ffffff', fontWeight: 800, fontSize: '0.78rem' }}>
+                                    📌 {rCode}
+                                  </span>
+                                ))}
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
                           <div style={{ display: 'inline-flex', gap: '0.5rem' }}>
@@ -2096,22 +2163,53 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, siteCo
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary-burgundy)', marginBottom: '0.3rem' }}>
-                  Ruta Asignada
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary-burgundy)', marginBottom: '0.5rem' }}>
+                  Rutas Asignadas (Seleccione una o varias rutas)
                 </label>
-                <select
-                  value={editSocioFormData.ruta}
-                  onChange={(e) => setEditSocioFormData(prev => ({ ...prev, ruta: e.target.value }))}
-                  className="input-control"
-                  style={{ fontWeight: 700 }}
-                >
-                  <option value="">-- Seleccionar Ruta Asignada --</option>
-                  {routes && routes.map(r => (
-                    <option key={r.id} value={r.codigo || r.lugarPrincipal}>
-                      {r.codigo ? `[${r.codigo}] ` : ''}{r.lugarPrincipal} ({r.dias})
-                    </option>
-                  ))}
-                </select>
+                <div style={{
+                  maxHeight: '160px',
+                  overflowY: 'auto',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '0.75rem',
+                  background: 'rgba(255, 255, 255, 0.8)',
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '0.5rem'
+                }}>
+                  {routes && routes.map(r => {
+                    const rCode = r.codigo || r.lugarPrincipal;
+                    const isSelected = (editSocioFormData.rutas || []).includes(rCode);
+                    return (
+                      <button
+                        type="button"
+                        key={r.id}
+                        onClick={() => toggleRouteForSocio(rCode, true)}
+                        style={{
+                          padding: '0.4rem 0.75rem',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '0.82rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          border: isSelected ? '1px solid var(--primary-burgundy)' : '1px solid #cbd5e1',
+                          background: isSelected ? 'var(--primary-burgundy)' : '#ffffff',
+                          color: isSelected ? '#ffffff' : '#334155',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {isSelected ? '✓' : '+'} {r.codigo ? `[${r.codigo}] ` : ''}{r.lugarPrincipal}
+                      </button>
+                    );
+                  })}
+                </div>
+                {editSocioFormData.rutas && editSocioFormData.rutas.length > 0 && (
+                  <div style={{ fontSize: '0.78rem', color: 'var(--accent-crimson)', fontWeight: 700, marginTop: '0.35rem' }}>
+                    {editSocioFormData.rutas.length} ruta(s) seleccionada(s): {editSocioFormData.rutas.join(', ')}
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
