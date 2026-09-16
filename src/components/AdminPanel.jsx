@@ -647,7 +647,7 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
   const handleSearchPackageForDispatch = async (e) => {
     if (e) e.preventDefault();
     if (!dispatchCodeSearch || !dispatchCodeSearch.trim()) {
-      setDispatchNotification({ type: 'error', text: 'Por favor ingrese o seleccione el Código del Paquete (Ej: P-A1B2C).' });
+      setDispatchNotification({ type: 'error', text: 'Por favor ingrese o seleccione el Código del Paquete (Ej: P-A1B).' });
       return;
     }
     setDispatchSearchLoading(true);
@@ -3403,7 +3403,7 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
                   Despacho y Entrega de Paquetes
                 </h2>
                 <p style={{ margin: '0.25rem 0 0 0', color: 'rgba(255,255,255,0.85)', fontSize: '0.9rem' }}>
-                  Ingrese o escanee el código correlativo de paquete (Ej: P-XXXXX) para ver su ficha de recepción, cargar la fotografía de entrega y marcarlo como ENTREGADO.
+                  Ingrese o escanee el código correlativo de paquete (Ej: P-XXX) para ver su ficha de recepción, cargar la fotografía de entrega y marcarlo como ENTREGADO.
                 </p>
               </div>
             </div>
@@ -3426,7 +3426,7 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
                 <input
                   type="text"
                   required
-                  placeholder="Ingrese el Código del Paquete (Ej: P-A1B2C)..."
+                  placeholder="Ingrese el Código del Paquete (Ej: P-A1B)..."
                   value={dispatchCodeSearch}
                   onChange={(e) => setDispatchCodeSearch(e.target.value.toUpperCase())}
                   className="input-control"
