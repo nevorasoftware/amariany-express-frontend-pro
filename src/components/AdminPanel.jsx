@@ -572,7 +572,12 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
 
   useEffect(() => {
     if (activeSubTab === 'settlement') {
+      setActiveSubTab('pagos');
+    }
+    if (activeSubTab === 'pagos' || activeSubTab === 'transferencias') {
       loadPlanillas();
+      loadPackages();
+      loadSellers();
     }
   }, [activeSubTab]);
 
@@ -1295,15 +1300,29 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
               </button>
               <button
                 onClick={() => {
-                  setActiveSubTab('settlement');
+                  setActiveSubTab('pagos');
                   loadPackages();
                   loadPlanillas();
+                  loadSellers();
                 }}
-                className={activeSubTab === 'settlement' ? 'btn btn-primary' : 'btn btn-outline-white'}
+                className={activeSubTab === 'pagos' ? 'btn btn-primary' : 'btn btn-outline-white'}
                 style={{ flexGrow: 1 }}
               >
                 <DollarSign size={18} />
-                Liquidación y Planillas
+                Pagos
+              </button>
+              <button
+                onClick={() => {
+                  setActiveSubTab('transferencias');
+                  loadPackages();
+                  loadPlanillas();
+                  loadSellers();
+                }}
+                className={activeSubTab === 'transferencias' ? 'btn btn-primary' : 'btn btn-outline-white'}
+                style={{ flexGrow: 1 }}
+              >
+                <CreditCard size={18} />
+                Transferencias
               </button>
               <button
                 onClick={() => {
@@ -4222,8 +4241,8 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
         </div>
       )}
 
-      {/* SECCIÓN NUEVA: LIQUIDACIÓN Y PLANILLAS */}
-      {activeSubTab === 'settlement' && (
+      {/* SECCIÓN: PAGOS (SOLO PAQUETES ENTREGADOS EN EFECTIVO) */}
+      {activeSubTab === 'pagos' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           
           {/* Header & Filter Card */}
@@ -4237,10 +4256,10 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
               <div>
                 <h3 style={{ fontSize: '1.4rem', fontWeight: 900, color: 'var(--primary-burgundy)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                  <DollarSign size={26} color="var(--primary-burgundy)" /> Liquidación y Planillas de Pagos
+                  <DollarSign size={26} color="var(--primary-burgundy)" /> Control de Pagos en Efectivo
                 </h3>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', margin: '0.2rem 0 0 0' }}>
-                  Consolidado diario de cobros por Efectivo y Transferencia para clientes vendedores
+                  Listado exclusivo de paquetes <strong>ENTREGADOS</strong> con cobro en <strong>EFECTIVO</strong> para liquidar con clientes vendedores
                 </p>
               </div>
 
@@ -4249,6 +4268,7 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
                   onClick={() => {
                     loadPackages();
                     loadPlanillas();
+                    loadSellers();
                   }}
                   className="btn"
                   style={{ background: '#f1f5f9', color: 'var(--primary-burgundy)', border: '1px solid #cbd5e1', fontWeight: 700 }}
@@ -4261,7 +4281,7 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
             {/* Filtros de Búsqueda y Selección */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
               gap: '1rem',
               background: '#f8fafc',
               padding: '1.25rem',
@@ -4270,7 +4290,7 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
             }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: 'var(--primary-burgundy)', marginBottom: '0.35rem' }}>
-                  Filtrar por Fecha (Recepción / Entrega)
+                  Filtrar por Fecha (Entrega / Recepción)
                 </label>
                 <input
                   type="date"
@@ -4283,22 +4303,6 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: 'var(--primary-burgundy)', marginBottom: '0.35rem' }}>
-                  Tipo de Pago
-                </label>
-                <select
-                  value={settlementTypeFilter}
-                  onChange={(e) => setSettlementTypeFilter(e.target.value)}
-                  className="select-control"
-                  style={{ background: '#ffffff' }}
-                >
-                  <option value="TODOS">Todos los Tipos de Pago</option>
-                  <option value="TRANSFERENCIA">🏦 Solo Transferencias</option>
-                  <option value="EFECTIVO">💵 Solo Efectivo</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: 'var(--primary-burgundy)', marginBottom: '0.35rem' }}>
                   Estado de Liquidación
                 </label>
                 <select
@@ -4307,10 +4311,9 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
                   className="select-control"
                   style={{ background: '#ffffff' }}
                 >
-                  <option value="TODOS">Todos los Estados</option>
+                  <option value="TODOS">Todos los Estados (Efectivo)</option>
                   <option value="PENDIENTE">⏳ Pendientes de Liquidar</option>
-                  <option value="ABONADO">🏦 Abonados (Transferencias)</option>
-                  <option value="PROCESADA">✅ Procesadas / Pagadas</option>
+                  <option value="PROCESADA">✅ Procesadas / Pagadas a Vendedor</option>
                 </select>
               </div>
 
@@ -4327,27 +4330,27 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
               )}
             </div>
 
-            {/* Tarjetas Resumen */}
+            {/* Tarjetas Resumen Pagos en Efectivo */}
             {(() => {
-              const filteredList = packages.filter(p => {
+              // REGLA: Solo paquetes entregados que sean en efectivo
+              const deliveredCashPackages = packages.filter(p => p.estado === 'ENTREGADO' && p.tipoPago === 'EFECTIVO');
+
+              const filteredList = deliveredCashPackages.filter(p => {
                 if (settlementDateFilter) {
-                  const pDate = p.fechaRecepcion || p.fechaEntrega || '';
+                  const pDate = p.fechaEntrega || p.fechaRecepcion || '';
                   if (!pDate.includes(settlementDateFilter)) return false;
                 }
-                if (settlementTypeFilter !== 'TODOS' && p.tipoPago !== settlementTypeFilter) return false;
                 if (settlementStatusFilter !== 'TODOS' && (p.estadoLiquidacion || 'PENDIENTE') !== settlementStatusFilter) return false;
                 return true;
               });
 
-              const totalTransferencias = filteredList
-                .filter(p => p.tipoPago === 'TRANSFERENCIA')
+              const totalEfectivo = filteredList.reduce((sum, p) => sum + (parseFloat(p.total) || 0), 0);
+              const totalPendientesMonto = filteredList
+                .filter(p => (p.estadoLiquidacion || 'PENDIENTE') === 'PENDIENTE')
                 .reduce((sum, p) => sum + (parseFloat(p.total) || 0), 0);
-
-              const totalEfectivo = filteredList
-                .filter(p => p.tipoPago === 'EFECTIVO')
+              const totalLiquidadosMonto = filteredList
+                .filter(p => p.estadoLiquidacion === 'PROCESADA')
                 .reduce((sum, p) => sum + (parseFloat(p.total) || 0), 0);
-
-              const totalGeneral = totalTransferencias + totalEfectivo;
 
               return (
                 <div style={{
@@ -4356,35 +4359,35 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
                   gap: '1rem',
                   marginTop: '1.5rem'
                 }}>
-                  <div style={{ background: 'linear-gradient(135deg, #4C0070 0%, #6B0038 100%)', color: '#fff', padding: '1.25rem', borderRadius: 'var(--radius-md)' }}>
-                    <div style={{ fontSize: '0.8rem', opacity: 0.85, fontWeight: 700, textTransform: 'uppercase' }}>Total Paquetes Filtrados</div>
+                  <div style={{ background: 'linear-gradient(135deg, #166534 0%, #15803d 100%)', color: '#fff', padding: '1.25rem', borderRadius: 'var(--radius-md)' }}>
+                    <div style={{ fontSize: '0.8rem', opacity: 0.9, fontWeight: 700, textTransform: 'uppercase' }}>Paquetes Entregados (Efectivo)</div>
                     <div style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.2rem' }}>{filteredList.length}</div>
-                    <div style={{ fontSize: '0.78rem', opacity: 0.75 }}>En listado actual</div>
-                  </div>
-
-                  <div style={{ background: '#e0e7ff', color: '#3730a3', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid #c7d2fe' }}>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase' }}>🏦 Total Transferencias</div>
-                    <div style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.2rem' }}>${totalTransferencias.toFixed(2)}</div>
-                    <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>Para abonar en banco</div>
+                    <div style={{ fontSize: '0.78rem', opacity: 0.85 }}>En listado actual</div>
                   </div>
 
                   <div style={{ background: '#dcfce7', color: '#166534', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid #bbf7d0' }}>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase' }}>💵 Total Efectivo</div>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase' }}>💵 Total Efectivo Recaudado</div>
                     <div style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.2rem' }}>${totalEfectivo.toFixed(2)}</div>
-                    <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>Cobro uno a uno en oficina</div>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>Total a liquidar en oficina</div>
                   </div>
 
                   <div style={{ background: '#fef3c7', color: '#92400e', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid #fde68a' }}>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase' }}>💰 Total General Liquidación</div>
-                    <div style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.2rem' }}>${totalGeneral.toFixed(2)}</div>
-                    <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>Consolidado del día</div>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase' }}>⏳ Pendiente de Liquidar</div>
+                    <div style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.2rem' }}>${totalPendientesMonto.toFixed(2)}</div>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>Por entregar a vendedores</div>
+                  </div>
+
+                  <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid #bae6fd' }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase' }}>✅ Ya Liquidado / Cobrado</div>
+                    <div style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.2rem' }}>${totalLiquidadosMonto.toFixed(2)}</div>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>Cobrado por vendedores</div>
                   </div>
                 </div>
               );
             })()}
           </div>
 
-          {/* TABLA DE PREVENTA Y BOTONES DE ACCIÓN PARA GENERAR PLANILLA / EXPORTAR EXCEL */}
+          {/* TABLA DE DETALLE DE PAQUETES ENTREGADOS EN EFECTIVO */}
           <div style={{
             background: '#ffffff',
             borderRadius: 'var(--radius-lg)',
@@ -4393,51 +4396,53 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
             border: '1px solid var(--border-light)'
           }}>
             {(() => {
-              const filteredList = packages.filter(p => {
+              // REGLA: Solo paquetes entregados que sean en efectivo
+              const deliveredCashPackages = packages.filter(p => p.estado === 'ENTREGADO' && p.tipoPago === 'EFECTIVO');
+
+              const filteredList = deliveredCashPackages.filter(p => {
                 if (settlementDateFilter) {
-                  const pDate = p.fechaRecepcion || p.fechaEntrega || '';
+                  const pDate = p.fechaEntrega || p.fechaRecepcion || '';
                   if (!pDate.includes(settlementDateFilter)) return false;
                 }
-                if (settlementTypeFilter !== 'TODOS' && p.tipoPago !== settlementTypeFilter) return false;
                 if (settlementStatusFilter !== 'TODOS' && (p.estadoLiquidacion || 'PENDIENTE') !== settlementStatusFilter) return false;
                 return true;
               });
 
-              const exportToExcel = (rowsToExport, customFilename) => {
+              const exportToExcelPagos = (rowsToExport) => {
                 if (!rowsToExport || rowsToExport.length === 0) {
-                  alert('No hay registros para exportar a Excel.');
+                  alert('No hay registros de pagos en efectivo para exportar a Excel.');
                   return;
                 }
                 const formatted = rowsToExport.map(p => ({
                   'Código Paquete': p.codigo || '',
-                  'Fecha Recepción': p.fechaRecepcion || '',
                   'Fecha Entrega': p.fechaEntrega || '',
+                  'Fecha Recepción': p.fechaRecepcion || '',
                   'Cliente (Destinatario)': p.cliente || '',
                   'Destino / Ruta': p.destino || '',
                   'Vendedor / Emisor': p.vendedorNombre || '',
                   'Valor ($)': p.valor ? parseFloat(p.valor).toFixed(2) : '0.00',
                   'Envío ($)': p.envio ? parseFloat(p.envio).toFixed(2) : '0.00',
-                  'Total ($)': p.total ? parseFloat(p.total).toFixed(2) : '0.00',
+                  'Total a Liquidar ($)': p.total ? parseFloat(p.total).toFixed(2) : '0.00',
                   'Teléfono': p.telefono || '',
-                  'Tipo Pago': p.tipoPago || 'EFECTIVO',
+                  'Tipo Pago': 'EFECTIVO',
                   'Estado Paquete': p.estado || '',
-                  'Estado Liquidación': p.estadoLiquidacion || 'PENDIENTE'
+                  'Estado Liquidación': p.estadoLiquidacion || 'PENDIENTE',
+                  'Fecha Pagado': p.fechaPagado || ''
                 }));
                 const dateTag = new Date().toISOString().slice(0, 10);
-                const fname = customFilename || `Liquidacion_Amairany_${settlementTypeFilter}_${dateTag}.csv`;
-                downloadExcelCSV(fname, formatted);
+                downloadExcelCSV(`Pagos_Efectivo_Entregados_${dateTag}.csv`, formatted);
               };
 
               return (
                 <>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
                     <h4 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--primary-burgundy)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <FileSpreadsheet size={20} color="var(--primary-burgundy)" /> Detalle de Paquetes Filtrados ({filteredList.length})
+                      <FileSpreadsheet size={20} color="var(--primary-burgundy)" /> Detalle de Paquetes Entregados en Efectivo ({filteredList.length})
                     </h4>
 
                     <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
                       <button
-                        onClick={() => exportToExcel(filteredList)}
+                        onClick={() => exportToExcelPagos(filteredList)}
                         className="btn"
                         style={{ background: '#10b981', color: '#ffffff', fontWeight: 800, padding: '0.6rem 1rem' }}
                       >
@@ -4445,17 +4450,8 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
                       </button>
 
                       <button
-                        onClick={() => handleGeneratePlanilla('TRANSFERENCIA', filteredList)}
-                        disabled={generatingPlanilla || filteredList.filter(p => p.tipoPago === 'TRANSFERENCIA').length === 0}
-                        className="btn btn-primary"
-                        style={{ padding: '0.6rem 1rem' }}
-                      >
-                        <Plus size={16} /> Generar Planilla (Transferencias)
-                      </button>
-
-                      <button
                         onClick={() => handleGeneratePlanilla('EFECTIVO', filteredList)}
-                        disabled={generatingPlanilla || filteredList.filter(p => p.tipoPago === 'EFECTIVO').length === 0}
+                        disabled={generatingPlanilla || filteredList.length === 0}
                         className="btn"
                         style={{ background: '#166534', color: '#ffffff', fontWeight: 800, padding: '0.6rem 1rem' }}
                       >
@@ -4469,8 +4465,8 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
                       <thead>
                         <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', color: 'var(--primary-burgundy)', fontWeight: 800 }}>
                           <th style={{ padding: '0.9rem 1rem' }}>Código</th>
-                          <th style={{ padding: '0.9rem 1rem' }}>F. Recepción</th>
                           <th style={{ padding: '0.9rem 1rem' }}>F. Entrega</th>
+                          <th style={{ padding: '0.9rem 1rem' }}>F. Recepción</th>
                           <th style={{ padding: '0.9rem 1rem' }}>Cliente</th>
                           <th style={{ padding: '0.9rem 1rem' }}>Destino</th>
                           <th style={{ padding: '0.9rem 1rem' }}>Vendedor</th>
@@ -4484,8 +4480,8 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
                       <tbody>
                         {filteredList.length === 0 ? (
                           <tr>
-                            <td colSpan="11" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                              No hay paquetes registrados que coincidan con los filtros seleccionados.
+                            <td colSpan="11" style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                              No hay paquetes <strong>ENTREGADOS</strong> en efectivo que coincidan con los filtros seleccionados.
                             </td>
                           </tr>
                         ) : (
@@ -4494,11 +4490,11 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
                               <td style={{ padding: '0.85rem 1rem', fontWeight: 900, color: 'var(--primary-burgundy)' }}>
                                 {pkg.codigo}
                               </td>
-                              <td style={{ padding: '0.85rem 1rem', color: '#64748b' }}>
-                                {pkg.fechaRecepcion || '-'}
+                              <td style={{ padding: '0.85rem 1rem', color: '#166534', fontWeight: 700 }}>
+                                {pkg.fechaEntrega || '-'}
                               </td>
                               <td style={{ padding: '0.85rem 1rem', color: '#64748b' }}>
-                                {pkg.fechaEntrega || '-'}
+                                {pkg.fechaRecepcion || '-'}
                               </td>
                               <td style={{ padding: '0.85rem 1rem', fontWeight: 800 }}>{pkg.cliente}</td>
                               <td style={{ padding: '0.85rem 1rem' }}>{pkg.destino}</td>
@@ -4512,10 +4508,10 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
                                   borderRadius: '12px',
                                   fontSize: '0.75rem',
                                   fontWeight: 800,
-                                  background: pkg.tipoPago === 'TRANSFERENCIA' ? '#e0e7ff' : '#dcfce7',
-                                  color: pkg.tipoPago === 'TRANSFERENCIA' ? '#3730a3' : '#166534'
+                                  background: '#dcfce7',
+                                  color: '#166534'
                                 }}>
-                                  {pkg.tipoPago === 'TRANSFERENCIA' ? '🏦 TRANSFERENCIA' : '💵 EFECTIVO'}
+                                  💵 EFECTIVO
                                 </span>
                               </td>
                               <td style={{ padding: '0.85rem 1rem' }}>
@@ -4524,8 +4520,8 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
                                   borderRadius: '12px',
                                   fontSize: '0.75rem',
                                   fontWeight: 800,
-                                  background: pkg.estado === 'ENTREGADO' ? '#dcfce7' : '#e0f2fe',
-                                  color: pkg.estado === 'ENTREGADO' ? '#15803d' : '#0369a1'
+                                  background: '#dcfce7',
+                                  color: '#15803d'
                                 }}>
                                   {pkg.estado}
                                 </span>
@@ -4536,35 +4532,29 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
                                   borderRadius: '12px',
                                   fontSize: '0.75rem',
                                   fontWeight: 800,
-                                  background: (pkg.estadoLiquidacion === 'PROCESADA' || pkg.estadoLiquidacion === 'ABONADO') ? '#dcfce7' : '#fef3c7',
-                                  color: (pkg.estadoLiquidacion === 'PROCESADA' || pkg.estadoLiquidacion === 'ABONADO') ? '#15803d' : '#d97706'
+                                  background: pkg.estadoLiquidacion === 'PROCESADA' ? '#dcfce7' : '#fef3c7',
+                                  color: pkg.estadoLiquidacion === 'PROCESADA' ? '#15803d' : '#d97706'
                                 }}>
                                   {pkg.estadoLiquidacion || 'PENDIENTE'}
                                 </span>
                               </td>
                               <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
-                                {pkg.tipoPago === 'EFECTIVO' ? (
-                                  <button
-                                    onClick={() => handleLiquidarIndividual(pkg.id)}
-                                    disabled={pkg.estadoLiquidacion === 'PROCESADA'}
-                                    style={{
-                                      background: pkg.estadoLiquidacion === 'PROCESADA' ? '#e2e8f0' : '#166534',
-                                      color: pkg.estadoLiquidacion === 'PROCESADA' ? '#94a3b8' : '#ffffff',
-                                      border: 'none',
-                                      padding: '0.4rem 0.75rem',
-                                      borderRadius: 'var(--radius-sm)',
-                                      cursor: pkg.estadoLiquidacion === 'PROCESADA' ? 'default' : 'pointer',
-                                      fontWeight: 800,
-                                      fontSize: '0.78rem'
-                                    }}
-                                  >
-                                    {pkg.estadoLiquidacion === 'PROCESADA' ? '✅ Liquidado (Cobrado)' : '💵 Liquidar 1 a 1'}
-                                  </button>
-                                ) : (
-                                  <span style={{ fontSize: '0.78rem', color: '#64748b', fontStyle: 'italic' }}>
-                                    Vía Planilla Masiva
-                                  </span>
-                                )}
+                                <button
+                                  onClick={() => handleLiquidarIndividual(pkg.id)}
+                                  disabled={pkg.estadoLiquidacion === 'PROCESADA'}
+                                  style={{
+                                    background: pkg.estadoLiquidacion === 'PROCESADA' ? '#e2e8f0' : '#166534',
+                                    color: pkg.estadoLiquidacion === 'PROCESADA' ? '#94a3b8' : '#ffffff',
+                                    border: 'none',
+                                    padding: '0.4rem 0.75rem',
+                                    borderRadius: 'var(--radius-sm)',
+                                    cursor: pkg.estadoLiquidacion === 'PROCESADA' ? 'default' : 'pointer',
+                                    fontWeight: 800,
+                                    fontSize: '0.78rem'
+                                  }}
+                                >
+                                  {pkg.estadoLiquidacion === 'PROCESADA' ? '✅ Liquidado (Cobrado)' : '💵 Liquidar 1 a 1'}
+                                </button>
                               </td>
                             </tr>
                           ))
@@ -4577,7 +4567,7 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
             })()}
           </div>
 
-          {/* HISTORIAL DE PLANILLAS GENERADAS EN BASE DE DATOS */}
+          {/* HISTORIAL DE PLANILLAS DE PAGOS EN EFECTIVO */}
           <div style={{
             background: '#ffffff',
             borderRadius: 'var(--radius-lg)',
@@ -4585,183 +4575,665 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
             boxShadow: 'var(--shadow-md)',
             border: '1px solid var(--border-light)'
           }}>
-            <h4 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary-burgundy)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <FileText size={22} color="var(--primary-burgundy)" /> Registros de Planillas de Liquidación ({planillas.length})
-            </h4>
+            {(() => {
+              const cashPlanillas = planillas.filter(pln => pln.tipoPago === 'EFECTIVO');
 
-            {planillasLoading ? (
-              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                Cargando historial de planillas...
-              </div>
-            ) : planillas.length === 0 ? (
-              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                Aún no se han generado planillas de liquidación.
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                {planillas.map((pln) => {
-                  let detail = [];
-                  try {
-                    detail = typeof pln.detalleJson === 'string' ? JSON.parse(pln.detalleJson) : (pln.detalleJson || []);
-                  } catch (e) {}
+              return (
+                <>
+                  <h4 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary-burgundy)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <FileText size={22} color="var(--primary-burgundy)" /> Registros de Planillas de Efectivo ({cashPlanillas.length})
+                  </h4>
 
-                  return (
-                    <div key={pln.id} style={{
-                      background: '#f8fafc',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1.5px solid #e2e8f0',
-                      padding: '1.25rem'
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1rem' }}>
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                            <span style={{
-                              background: '#FAF5FF',
-                              color: 'var(--primary-burgundy)',
-                              padding: '0.3rem 0.75rem',
-                              borderRadius: 'var(--radius-sm)',
-                              fontWeight: 900,
-                              fontSize: '0.9rem',
-                              border: '1.5px solid rgba(76,0,112,0.25)'
-                            }}>
-                              {pln.codigo}
-                            </span>
-                            <span style={{
-                              padding: '0.3rem 0.75rem',
-                              borderRadius: '12px',
-                              fontSize: '0.78rem',
-                              fontWeight: 800,
-                              background: pln.tipoPago === 'TRANSFERENCIA' ? '#e0e7ff' : '#dcfce7',
-                              color: pln.tipoPago === 'TRANSFERENCIA' ? '#3730a3' : '#166534'
-                            }}>
-                              {pln.tipoPago === 'TRANSFERENCIA' ? '🏦 TRANSFERENCIA' : '💵 EFECTIVO'}
-                            </span>
-                            <span style={{
-                              padding: '0.3rem 0.75rem',
-                              borderRadius: '12px',
-                              fontSize: '0.78rem',
-                              fontWeight: 800,
-                              background: pln.estado === 'PROCESADA' ? '#dcfce7' : pln.estado === 'ABONADO' ? '#e0f2fe' : '#fef3c7',
-                              color: pln.estado === 'PROCESADA' ? '#15803d' : pln.estado === 'ABONADO' ? '#0369a1' : '#d97706'
-                            }}>
-                              ESTADO: {pln.estado}
-                            </span>
-                          </div>
-
-                          <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.4rem', fontWeight: 600 }}>
-                            Fecha de Planilla: <strong>{pln.fecha}</strong> | Cantidad Paquetes: <strong>{detail.length}</strong>
-                          </div>
-                        </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                          <div style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--primary-burgundy)' }}>
-                            Total: ${parseFloat(pln.montoTotal).toFixed(2)}
-                          </div>
-
-                          {/* ACCIONES DE ESTADO PARA PLANILLAS */}
-                          {pln.tipoPago === 'TRANSFERENCIA' && pln.estado !== 'PROCESADA' && (
-                            <div style={{ display: 'flex', gap: '0.4rem' }}>
-                              {pln.estado === 'GENERADA' && (
-                                <button
-                                  onClick={() => handleUpdatePlanillaStatus(pln.id, 'ABONADO')}
-                                  className="btn"
-                                  style={{ background: '#e0f2fe', color: '#0369a1', fontWeight: 800, fontSize: '0.8rem', padding: '0.45rem 0.75rem' }}
-                                >
-                                  Marcar ABONADO
-                                </button>
-                              )}
-                              <button
-                                onClick={() => handleUpdatePlanillaStatus(pln.id, 'PROCESADA')}
-                                className="btn"
-                                style={{ background: '#15803d', color: '#ffffff', fontWeight: 800, fontSize: '0.8rem', padding: '0.45rem 0.75rem' }}
-                              >
-                                Marcar PROCESADA (Masivo)
-                              </button>
-                            </div>
-                          )}
-
-                          <button
-                            onClick={() => {
-                              const exportRows = detail.map(p => ({
-                                'Código Planilla': pln.codigo,
-                                'Código Paquete': p.codigo || '',
-                                'Cliente': p.cliente || '',
-                                'Destino': p.destino || '',
-                                'Vendedor': p.vendedorNombre || '',
-                                'Valor ($)': p.valor ? parseFloat(p.valor).toFixed(2) : '0.00',
-                                'Envío ($)': p.envio ? parseFloat(p.envio).toFixed(2) : '0.00',
-                                'Total ($)': p.total ? parseFloat(p.total).toFixed(2) : '0.00',
-                                'Tipo Pago': pln.tipoPago,
-                                'Estado Planilla': pln.estado
-                              }));
-                              downloadExcelCSV(`Planilla_${pln.codigo}.csv`, exportRows);
-                            }}
-                            className="btn"
-                            style={{ background: '#10b981', color: '#ffffff', fontWeight: 800, fontSize: '0.8rem', padding: '0.45rem 0.75rem' }}
-                          >
-                            <FileSpreadsheet size={15} /> Descargar Excel
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Lógica Uno a Uno para Efectivo dentro de la Planilla */}
-                      {pln.tipoPago === 'EFECTIVO' && detail.length > 0 && (
-                        <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #e2e8f0' }}>
-                          <div style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--primary-burgundy)', marginBottom: '0.5rem' }}>
-                            Paquetes en Efectivo de la Planilla (Procesamiento Uno a Uno cuando el Vendedor recoge el dinero):
-                          </div>
-                          <div style={{ overflowX: 'auto' }}>
-                            <table style={{ width: '100%', fontSize: '0.82rem', borderCollapse: 'collapse' }}>
-                              <thead>
-                                <tr style={{ background: '#ffffff', color: '#475569', fontWeight: 700, borderBottom: '1px solid #cbd5e1' }}>
-                                  <th style={{ padding: '0.4rem 0.6rem' }}>Código</th>
-                                  <th style={{ padding: '0.4rem 0.6rem' }}>Vendedor</th>
-                                  <th style={{ padding: '0.4rem 0.6rem' }}>Cliente</th>
-                                  <th style={{ padding: '0.4rem 0.6rem' }}>Monto ($)</th>
-                                  <th style={{ padding: '0.4rem 0.6rem', textAlign: 'right' }}>Acción Uno a Uno</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {detail.map(dp => {
-                                  const dbPkg = packages.find(p => p.id === dp.id || p.codigo === dp.codigo);
-                                  const currentStatus = dbPkg ? (dbPkg.estadoLiquidacion || 'PENDIENTE') : 'PENDIENTE';
-                                  return (
-                                    <tr key={dp.id || dp.codigo} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                      <td style={{ padding: '0.4rem 0.6rem', fontWeight: 800 }}>{dp.codigo}</td>
-                                      <td style={{ padding: '0.4rem 0.6rem' }}>{dp.vendedorNombre}</td>
-                                      <td style={{ padding: '0.4rem 0.6rem' }}>{dp.cliente}</td>
-                                      <td style={{ padding: '0.4rem 0.6rem', fontWeight: 900 }}>${parseFloat(dp.total || 0).toFixed(2)}</td>
-                                      <td style={{ padding: '0.4rem 0.6rem', textAlign: 'right' }}>
-                                        <button
-                                          onClick={() => dp.id && handleLiquidarIndividual(dp.id)}
-                                          disabled={currentStatus === 'PROCESADA'}
-                                          style={{
-                                            background: currentStatus === 'PROCESADA' ? '#e2e8f0' : '#166534',
-                                            color: currentStatus === 'PROCESADA' ? '#94a3b8' : '#ffffff',
-                                            border: 'none',
-                                            padding: '0.25rem 0.55rem',
-                                            borderRadius: 'var(--radius-sm)',
-                                            fontWeight: 800,
-                                            fontSize: '0.75rem',
-                                            cursor: currentStatus === 'PROCESADA' ? 'default' : 'pointer'
-                                          }}
-                                        >
-                                          {currentStatus === 'PROCESADA' ? '✅ Cobrado por Vendedor' : '💵 Entregar Dinero a Vendedor'}
-                                        </button>
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      )}
+                  {planillasLoading ? (
+                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      Cargando historial de planillas...
                     </div>
-                  );
-                })}
+                  ) : cashPlanillas.length === 0 ? (
+                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      Aún no se han generado planillas de pago en efectivo.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                      {cashPlanillas.map((pln) => {
+                        let detail = [];
+                        try {
+                          detail = typeof pln.detalleJson === 'string' ? JSON.parse(pln.detalleJson) : (pln.detalleJson || []);
+                        } catch (e) {}
+
+                        return (
+                          <div key={pln.id} style={{
+                            background: '#f8fafc',
+                            borderRadius: 'var(--radius-md)',
+                            border: '1.5px solid #e2e8f0',
+                            padding: '1.25rem'
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1rem' }}>
+                              <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                  <span style={{
+                                    background: '#FAF5FF',
+                                    color: 'var(--primary-burgundy)',
+                                    padding: '0.3rem 0.75rem',
+                                    borderRadius: 'var(--radius-sm)',
+                                    fontWeight: 900,
+                                    fontSize: '0.9rem',
+                                    border: '1.5px solid rgba(76,0,112,0.25)'
+                                  }}>
+                                    {pln.codigo}
+                                  </span>
+                                  <span style={{
+                                    padding: '0.3rem 0.75rem',
+                                    borderRadius: '12px',
+                                    fontSize: '0.78rem',
+                                    fontWeight: 800,
+                                    background: '#dcfce7',
+                                    color: '#166534'
+                                  }}>
+                                    💵 EFECTIVO
+                                  </span>
+                                  <span style={{
+                                    padding: '0.3rem 0.75rem',
+                                    borderRadius: '12px',
+                                    fontSize: '0.78rem',
+                                    fontWeight: 800,
+                                    background: pln.estado === 'PROCESADA' ? '#dcfce7' : '#fef3c7',
+                                    color: pln.estado === 'PROCESADA' ? '#15803d' : '#d97706'
+                                  }}>
+                                    ESTADO: {pln.estado}
+                                  </span>
+                                </div>
+
+                                <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.4rem', fontWeight: 600 }}>
+                                  Fecha de Planilla: <strong>{pln.fecha}</strong> | Cantidad Paquetes: <strong>{detail.length}</strong>
+                                </div>
+                              </div>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                                <div style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--primary-burgundy)' }}>
+                                  Total: ${parseFloat(pln.montoTotal).toFixed(2)}
+                                </div>
+
+                                <button
+                                  onClick={() => {
+                                    const exportRows = detail.map(p => ({
+                                      'Código Planilla': pln.codigo,
+                                      'Código Paquete': p.codigo || '',
+                                      'Cliente': p.cliente || '',
+                                      'Destino': p.destino || '',
+                                      'Vendedor': p.vendedorNombre || '',
+                                      'Valor ($)': p.valor ? parseFloat(p.valor).toFixed(2) : '0.00',
+                                      'Envío ($)': p.envio ? parseFloat(p.envio).toFixed(2) : '0.00',
+                                      'Total ($)': p.total ? parseFloat(p.total).toFixed(2) : '0.00',
+                                      'Tipo Pago': 'EFECTIVO',
+                                      'Estado Planilla': pln.estado
+                                    }));
+                                    downloadExcelCSV(`Planilla_Efectivo_${pln.codigo}.csv`, exportRows);
+                                  }}
+                                  className="btn"
+                                  style={{ background: '#10b981', color: '#ffffff', fontWeight: 800, fontSize: '0.8rem', padding: '0.45rem 0.75rem' }}
+                                >
+                                  <FileSpreadsheet size={15} /> Descargar Excel
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Lógica Uno a Uno para Efectivo dentro de la Planilla */}
+                            {detail.length > 0 && (
+                              <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #e2e8f0' }}>
+                                <div style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--primary-burgundy)', marginBottom: '0.5rem' }}>
+                                  Paquetes en Efectivo de la Planilla (Procesamiento Uno a Uno cuando el Vendedor recoge el dinero):
+                                </div>
+                                <div style={{ overflowX: 'auto' }}>
+                                  <table style={{ width: '100%', fontSize: '0.82rem', borderCollapse: 'collapse' }}>
+                                    <thead>
+                                      <tr style={{ background: '#ffffff', color: '#475569', fontWeight: 700, borderBottom: '1px solid #cbd5e1' }}>
+                                        <th style={{ padding: '0.4rem 0.6rem' }}>Código</th>
+                                        <th style={{ padding: '0.4rem 0.6rem' }}>Vendedor</th>
+                                        <th style={{ padding: '0.4rem 0.6rem' }}>Cliente</th>
+                                        <th style={{ padding: '0.4rem 0.6rem' }}>Monto ($)</th>
+                                        <th style={{ padding: '0.4rem 0.6rem', textAlign: 'right' }}>Acción Uno a Uno</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {detail.map(dp => {
+                                        const dbPkg = packages.find(p => p.id === dp.id || p.codigo === dp.codigo);
+                                        const currentStatus = dbPkg ? (dbPkg.estadoLiquidacion || 'PENDIENTE') : 'PENDIENTE';
+                                        return (
+                                          <tr key={dp.id || dp.codigo} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                            <td style={{ padding: '0.4rem 0.6rem', fontWeight: 800 }}>{dp.codigo}</td>
+                                            <td style={{ padding: '0.4rem 0.6rem' }}>{dp.vendedorNombre}</td>
+                                            <td style={{ padding: '0.4rem 0.6rem' }}>{dp.cliente}</td>
+                                            <td style={{ padding: '0.4rem 0.6rem', fontWeight: 900 }}>${parseFloat(dp.total || 0).toFixed(2)}</td>
+                                            <td style={{ padding: '0.4rem 0.6rem', textAlign: 'right' }}>
+                                              <button
+                                                onClick={() => dp.id && handleLiquidarIndividual(dp.id)}
+                                                disabled={currentStatus === 'PROCESADA'}
+                                                style={{
+                                                  background: currentStatus === 'PROCESADA' ? '#e2e8f0' : '#166534',
+                                                  color: currentStatus === 'PROCESADA' ? '#94a3b8' : '#ffffff',
+                                                  border: 'none',
+                                                  padding: '0.25rem 0.55rem',
+                                                  borderRadius: 'var(--radius-sm)',
+                                                  fontWeight: 800,
+                                                  fontSize: '0.75rem',
+                                                  cursor: currentStatus === 'PROCESADA' ? 'default' : 'pointer'
+                                                }}
+                                              >
+                                                {currentStatus === 'PROCESADA' ? '✅ Cobrado por Vendedor' : '💵 Entregar Dinero a Vendedor'}
+                                              </button>
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+
+        </div>
+      )}
+
+      {/* SECCIÓN: TRANSFERENCIAS (SOLO PAQUETES ENTREGADOS QUE HAYAN SELECCIONADO TRANSFERENCIA) */}
+      {activeSubTab === 'transferencias' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          
+          {/* Header & Filter Card */}
+          <div style={{
+            background: '#ffffff',
+            borderRadius: 'var(--radius-lg)',
+            padding: '1.75rem',
+            boxShadow: 'var(--shadow-md)',
+            border: '1px solid var(--border-light)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1.4rem', fontWeight: 900, color: 'var(--primary-burgundy)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <CreditCard size={26} color="var(--primary-burgundy)" /> Control de Transferencias Bancarias
+                </h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', margin: '0.2rem 0 0 0' }}>
+                  Listado exclusivo de paquetes <strong>ENTREGADOS</strong> con pago por <strong>TRANSFERENCIA</strong> para abonar a vendedores
+                </p>
               </div>
-            )}
+
+              <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => {
+                    loadPackages();
+                    loadPlanillas();
+                    loadSellers();
+                  }}
+                  className="btn"
+                  style={{ background: '#f1f5f9', color: 'var(--primary-burgundy)', border: '1px solid #cbd5e1', fontWeight: 700 }}
+                >
+                  <RefreshCw size={16} /> Actualizar Datos
+                </button>
+              </div>
+            </div>
+
+            {/* Filtros de Búsqueda y Selección */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: '1rem',
+              background: '#f8fafc',
+              padding: '1.25rem',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid #e2e8f0'
+            }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: 'var(--primary-burgundy)', marginBottom: '0.35rem' }}>
+                  Filtrar por Fecha (Entrega / Recepción)
+                </label>
+                <input
+                  type="date"
+                  value={settlementDateFilter}
+                  onChange={(e) => setSettlementDateFilter(e.target.value)}
+                  className="input-control"
+                  style={{ background: '#ffffff' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: 'var(--primary-burgundy)', marginBottom: '0.35rem' }}>
+                  Estado de Liquidación / Abono
+                </label>
+                <select
+                  value={settlementStatusFilter}
+                  onChange={(e) => setSettlementStatusFilter(e.target.value)}
+                  className="select-control"
+                  style={{ background: '#ffffff' }}
+                >
+                  <option value="TODOS">Todos los Estados (Transferencia)</option>
+                  <option value="PENDIENTE">⏳ Pendientes de Abono Bancario</option>
+                  <option value="ABONADO">🏦 Abonados en Banco</option>
+                  <option value="PROCESADA">✅ Procesadas / Cerradas</option>
+                </select>
+              </div>
+
+              {settlementDateFilter && (
+                <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                  <button
+                    onClick={() => setSettlementDateFilter('')}
+                    className="btn"
+                    style={{ background: '#fee2e2', color: '#dc2626', border: 'none', fontWeight: 700, width: '100%' }}
+                  >
+                    <X size={16} /> Limpiar Fecha
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Tarjetas Resumen Transferencias */}
+            {(() => {
+              // REGLA: Solo paquetes entregados que hayan seleccionado transferencia
+              const deliveredTransferPackages = packages.filter(p => p.estado === 'ENTREGADO' && p.tipoPago === 'TRANSFERENCIA');
+
+              const filteredList = deliveredTransferPackages.filter(p => {
+                if (settlementDateFilter) {
+                  const pDate = p.fechaEntrega || p.fechaRecepcion || '';
+                  if (!pDate.includes(settlementDateFilter)) return false;
+                }
+                if (settlementStatusFilter !== 'TODOS' && (p.estadoLiquidacion || 'PENDIENTE') !== settlementStatusFilter) return false;
+                return true;
+              });
+
+              const totalTransferencias = filteredList.reduce((sum, p) => sum + (parseFloat(p.total) || 0), 0);
+              const totalPendientesAbono = filteredList
+                .filter(p => (p.estadoLiquidacion || 'PENDIENTE') === 'PENDIENTE')
+                .reduce((sum, p) => sum + (parseFloat(p.total) || 0), 0);
+              const totalAbonados = filteredList
+                .filter(p => p.estadoLiquidacion === 'ABONADO' || p.estadoLiquidacion === 'PROCESADA')
+                .reduce((sum, p) => sum + (parseFloat(p.total) || 0), 0);
+
+              return (
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                  gap: '1rem',
+                  marginTop: '1.5rem'
+                }}>
+                  <div style={{ background: 'linear-gradient(135deg, #4C0070 0%, #312e81 100%)', color: '#fff', padding: '1.25rem', borderRadius: 'var(--radius-md)' }}>
+                    <div style={{ fontSize: '0.8rem', opacity: 0.9, fontWeight: 700, textTransform: 'uppercase' }}>Paquetes Entregados (Transferencias)</div>
+                    <div style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.2rem' }}>{filteredList.length}</div>
+                    <div style={{ fontSize: '0.78rem', opacity: 0.85 }}>En listado actual</div>
+                  </div>
+
+                  <div style={{ background: '#e0e7ff', color: '#3730a3', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid #c7d2fe' }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase' }}>🏦 Total a Transferir</div>
+                    <div style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.2rem' }}>${totalTransferencias.toFixed(2)}</div>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>Para abonar en banco a vendedores</div>
+                  </div>
+
+                  <div style={{ background: '#fef3c7', color: '#92400e', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid #fde68a' }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase' }}>⏳ Pendientes de Abono</div>
+                    <div style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.2rem' }}>${totalPendientesAbono.toFixed(2)}</div>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>Aún no abonados en cuenta</div>
+                  </div>
+
+                  <div style={{ background: '#dcfce7', color: '#166534', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid #bbf7d0' }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase' }}>✅ Abonados / Procesados</div>
+                    <div style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.2rem' }}>${totalAbonados.toFixed(2)}</div>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>Transferencias efectuadas</div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* TABLA DE DETALLE DE PAQUETES ENTREGADOS POR TRANSFERENCIA */}
+          <div style={{
+            background: '#ffffff',
+            borderRadius: 'var(--radius-lg)',
+            padding: '1.75rem',
+            boxShadow: 'var(--shadow-md)',
+            border: '1px solid var(--border-light)'
+          }}>
+            {(() => {
+              // REGLA: Solo paquetes entregados que hayan seleccionado transferencia
+              const deliveredTransferPackages = packages.filter(p => p.estado === 'ENTREGADO' && p.tipoPago === 'TRANSFERENCIA');
+
+              const filteredList = deliveredTransferPackages.filter(p => {
+                if (settlementDateFilter) {
+                  const pDate = p.fechaEntrega || p.fechaRecepcion || '';
+                  if (!pDate.includes(settlementDateFilter)) return false;
+                }
+                if (settlementStatusFilter !== 'TODOS' && (p.estadoLiquidacion || 'PENDIENTE') !== settlementStatusFilter) return false;
+                return true;
+              });
+
+              const exportToExcelTransferencias = (rowsToExport) => {
+                if (!rowsToExport || rowsToExport.length === 0) {
+                  alert('No hay registros de transferencias para exportar a Excel.');
+                  return;
+                }
+                const formatted = rowsToExport.map(p => {
+                  const sellerObj = sellers.find(s => 
+                    (s.nombre && s.nombre.toLowerCase() === (p.vendedorNombre || '').toLowerCase()) ||
+                    (s.tienda && s.tienda.toLowerCase() === (p.vendedorNombre || '').toLowerCase())
+                  );
+                  return {
+                    'Código Paquete': p.codigo || '',
+                    'Fecha Entrega': p.fechaEntrega || '',
+                    'Fecha Recepción': p.fechaRecepcion || '',
+                    'Cliente (Destinatario)': p.cliente || '',
+                    'Destino / Ruta': p.destino || '',
+                    'Vendedor / Emisor': p.vendedorNombre || '',
+                    'Cuenta Banco Agrícola': sellerObj?.cuentaBancoAgricola || 'No registrada',
+                    'Valor ($)': p.valor ? parseFloat(p.valor).toFixed(2) : '0.00',
+                    'Envío ($)': p.envio ? parseFloat(p.envio).toFixed(2) : '0.00',
+                    'Total a Transferir ($)': p.total ? parseFloat(p.total).toFixed(2) : '0.00',
+                    'Teléfono': p.telefono || '',
+                    'Tipo Pago': 'TRANSFERENCIA',
+                    'Estado Paquete': p.estado || '',
+                    'Estado Liquidación': p.estadoLiquidacion || 'PENDIENTE'
+                  };
+                });
+                const dateTag = new Date().toISOString().slice(0, 10);
+                downloadExcelCSV(`Transferencias_Entregadas_${dateTag}.csv`, formatted);
+              };
+
+              return (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+                    <h4 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--primary-burgundy)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <FileSpreadsheet size={20} color="var(--primary-burgundy)" /> Detalle de Paquetes Entregados por Transferencia ({filteredList.length})
+                    </h4>
+
+                    <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
+                      <button
+                        onClick={() => exportToExcelTransferencias(filteredList)}
+                        className="btn"
+                        style={{ background: '#10b981', color: '#ffffff', fontWeight: 800, padding: '0.6rem 1rem' }}
+                      >
+                        <FileSpreadsheet size={16} /> Exportar a Excel (CSV)
+                      </button>
+
+                      <button
+                        onClick={() => handleGeneratePlanilla('TRANSFERENCIA', filteredList)}
+                        disabled={generatingPlanilla || filteredList.length === 0}
+                        className="btn btn-primary"
+                        style={{ padding: '0.6rem 1rem' }}
+                      >
+                        <Plus size={16} /> Generar Planilla (Transferencias)
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ overflowX: 'auto', borderRadius: 'var(--radius-md)', border: '1px solid #e2e8f0' }}>
+                    <table style={{ width: '100%', minWidth: '1150px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
+                      <thead>
+                        <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', color: 'var(--primary-burgundy)', fontWeight: 800 }}>
+                          <th style={{ padding: '0.9rem 1rem' }}>Código</th>
+                          <th style={{ padding: '0.9rem 1rem' }}>F. Entrega</th>
+                          <th style={{ padding: '0.9rem 1rem' }}>F. Recepción</th>
+                          <th style={{ padding: '0.9rem 1rem' }}>Cliente</th>
+                          <th style={{ padding: '0.9rem 1rem' }}>Destino</th>
+                          <th style={{ padding: '0.9rem 1rem' }}>Vendedor</th>
+                          <th style={{ padding: '0.9rem 1rem' }}>Cuenta Banco Agrícola</th>
+                          <th style={{ padding: '0.9rem 1rem' }}>Total a Transferir ($)</th>
+                          <th style={{ padding: '0.9rem 1rem' }}>Estado Pqte</th>
+                          <th style={{ padding: '0.9rem 1rem' }}>Estado Liquidación</th>
+                          <th style={{ padding: '0.9rem 1rem', textAlign: 'center' }}>Acción</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredList.length === 0 ? (
+                          <tr>
+                            <td colSpan="11" style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                              No hay paquetes <strong>ENTREGADOS</strong> con transferencia que coincidan con los filtros seleccionados.
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredList.map((pkg) => {
+                            const sellerObj = sellers.find(s => 
+                              (s.nombre && s.nombre.toLowerCase() === (pkg.vendedorNombre || '').toLowerCase()) ||
+                              (s.tienda && s.tienda.toLowerCase() === (pkg.vendedorNombre || '').toLowerCase())
+                            );
+                            const bankAccount = sellerObj?.cuentaBancoAgricola;
+
+                            return (
+                              <tr key={pkg.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                <td style={{ padding: '0.85rem 1rem', fontWeight: 900, color: 'var(--primary-burgundy)' }}>
+                                  {pkg.codigo}
+                                </td>
+                                <td style={{ padding: '0.85rem 1rem', color: '#3730a3', fontWeight: 700 }}>
+                                  {pkg.fechaEntrega || '-'}
+                                </td>
+                                <td style={{ padding: '0.85rem 1rem', color: '#64748b' }}>
+                                  {pkg.fechaRecepcion || '-'}
+                                </td>
+                                <td style={{ padding: '0.85rem 1rem', fontWeight: 800 }}>{pkg.cliente}</td>
+                                <td style={{ padding: '0.85rem 1rem' }}>{pkg.destino}</td>
+                                <td style={{ padding: '0.85rem 1rem', fontWeight: 700 }}>{pkg.vendedorNombre}</td>
+                                <td style={{ padding: '0.85rem 1rem' }}>
+                                  {bankAccount ? (
+                                    <span style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '0.35rem',
+                                      padding: '0.25rem 0.6rem',
+                                      borderRadius: '6px',
+                                      fontSize: '0.78rem',
+                                      fontWeight: 800,
+                                      background: '#e0e7ff',
+                                      color: '#3730a3'
+                                    }}>
+                                      <CreditCard size={13} /> {bankAccount}
+                                    </span>
+                                  ) : (
+                                    <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                                      No registrada
+                                    </span>
+                                  )}
+                                </td>
+                                <td style={{ padding: '0.85rem 1rem', fontWeight: 900, color: '#3730a3' }}>
+                                  ${parseFloat(pkg.total).toFixed(2)}
+                                </td>
+                                <td style={{ padding: '0.85rem 1rem' }}>
+                                  <span style={{
+                                    padding: '0.25rem 0.6rem',
+                                    borderRadius: '12px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 800,
+                                    background: '#dcfce7',
+                                    color: '#15803d'
+                                  }}>
+                                    {pkg.estado}
+                                  </span>
+                                </td>
+                                <td style={{ padding: '0.85rem 1rem' }}>
+                                  <span style={{
+                                    padding: '0.25rem 0.6rem',
+                                    borderRadius: '12px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 800,
+                                    background: (pkg.estadoLiquidacion === 'PROCESADA' || pkg.estadoLiquidacion === 'ABONADO') ? '#dcfce7' : '#fef3c7',
+                                    color: (pkg.estadoLiquidacion === 'PROCESADA' || pkg.estadoLiquidacion === 'ABONADO') ? '#15803d' : '#d97706'
+                                  }}>
+                                    {pkg.estadoLiquidacion || 'PENDIENTE'}
+                                  </span>
+                                </td>
+                                <td style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>
+                                  <span style={{
+                                    padding: '0.3rem 0.65rem',
+                                    borderRadius: '6px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 800,
+                                    background: '#f1f5f9',
+                                    color: '#475569',
+                                    border: '1px solid #cbd5e1'
+                                  }}>
+                                    Vía Planilla Masiva
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+
+          {/* HISTORIAL DE PLANILLAS DE TRANSFERENCIAS */}
+          <div style={{
+            background: '#ffffff',
+            borderRadius: 'var(--radius-lg)',
+            padding: '1.75rem',
+            boxShadow: 'var(--shadow-md)',
+            border: '1px solid var(--border-light)'
+          }}>
+            {(() => {
+              const transferPlanillas = planillas.filter(pln => pln.tipoPago === 'TRANSFERENCIA');
+
+              return (
+                <>
+                  <h4 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary-burgundy)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <FileText size={22} color="var(--primary-burgundy)" /> Registros de Planillas de Transferencias ({transferPlanillas.length})
+                  </h4>
+
+                  {planillasLoading ? (
+                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      Cargando historial de planillas...
+                    </div>
+                  ) : transferPlanillas.length === 0 ? (
+                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      Aún no se han generado planillas de transferencia bancaria.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                      {transferPlanillas.map((pln) => {
+                        let detail = [];
+                        try {
+                          detail = typeof pln.detalleJson === 'string' ? JSON.parse(pln.detalleJson) : (pln.detalleJson || []);
+                        } catch (e) {}
+
+                        return (
+                          <div key={pln.id} style={{
+                            background: '#f8fafc',
+                            borderRadius: 'var(--radius-md)',
+                            border: '1.5px solid #e2e8f0',
+                            padding: '1.25rem'
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1rem' }}>
+                              <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                  <span style={{
+                                    background: '#FAF5FF',
+                                    color: 'var(--primary-burgundy)',
+                                    padding: '0.3rem 0.75rem',
+                                    borderRadius: 'var(--radius-sm)',
+                                    fontWeight: 900,
+                                    fontSize: '0.9rem',
+                                    border: '1.5px solid rgba(76,0,112,0.25)'
+                                  }}>
+                                    {pln.codigo}
+                                  </span>
+                                  <span style={{
+                                    padding: '0.3rem 0.75rem',
+                                    borderRadius: '12px',
+                                    fontSize: '0.78rem',
+                                    fontWeight: 800,
+                                    background: '#e0e7ff',
+                                    color: '#3730a3'
+                                  }}>
+                                    🏦 TRANSFERENCIA
+                                  </span>
+                                  <span style={{
+                                    padding: '0.3rem 0.75rem',
+                                    borderRadius: '12px',
+                                    fontSize: '0.78rem',
+                                    fontWeight: 800,
+                                    background: pln.estado === 'PROCESADA' ? '#dcfce7' : pln.estado === 'ABONADO' ? '#e0f2fe' : '#fef3c7',
+                                    color: pln.estado === 'PROCESADA' ? '#15803d' : pln.estado === 'ABONADO' ? '#0369a1' : '#d97706'
+                                  }}>
+                                    ESTADO: {pln.estado}
+                                  </span>
+                                </div>
+
+                                <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.4rem', fontWeight: 600 }}>
+                                  Fecha de Planilla: <strong>{pln.fecha}</strong> | Cantidad Paquetes: <strong>{detail.length}</strong>
+                                </div>
+                              </div>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                                <div style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--primary-burgundy)' }}>
+                                  Total: ${parseFloat(pln.montoTotal).toFixed(2)}
+                                </div>
+
+                                {/* ACCIONES DE ESTADO PARA PLANILLAS DE TRANSFERENCIA */}
+                                {pln.estado !== 'PROCESADA' && (
+                                  <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                    {pln.estado === 'GENERADA' && (
+                                      <button
+                                        onClick={() => handleUpdatePlanillaStatus(pln.id, 'ABONADO')}
+                                        className="btn"
+                                        style={{ background: '#e0f2fe', color: '#0369a1', fontWeight: 800, fontSize: '0.8rem', padding: '0.45rem 0.75rem' }}
+                                      >
+                                        Marcar ABONADO
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => handleUpdatePlanillaStatus(pln.id, 'PROCESADA')}
+                                      className="btn"
+                                      style={{ background: '#15803d', color: '#ffffff', fontWeight: 800, fontSize: '0.8rem', padding: '0.45rem 0.75rem' }}
+                                    >
+                                      Marcar PROCESADA (Masivo)
+                                    </button>
+                                  </div>
+                                )}
+
+                                <button
+                                  onClick={() => {
+                                    const exportRows = detail.map(p => {
+                                      const sellerObj = sellers.find(s => 
+                                        (s.nombre && s.nombre.toLowerCase() === (p.vendedorNombre || '').toLowerCase()) ||
+                                        (s.tienda && s.tienda.toLowerCase() === (p.vendedorNombre || '').toLowerCase())
+                                      );
+                                      return {
+                                        'Código Planilla': pln.codigo,
+                                        'Código Paquete': p.codigo || '',
+                                        'Cliente': p.cliente || '',
+                                        'Destino': p.destino || '',
+                                        'Vendedor': p.vendedorNombre || '',
+                                        'Cuenta Banco Agrícola': sellerObj?.cuentaBancoAgricola || 'No registrada',
+                                        'Valor ($)': p.valor ? parseFloat(p.valor).toFixed(2) : '0.00',
+                                        'Envío ($)': p.envio ? parseFloat(p.envio).toFixed(2) : '0.00',
+                                        'Total ($)': p.total ? parseFloat(p.total).toFixed(2) : '0.00',
+                                        'Tipo Pago': 'TRANSFERENCIA',
+                                        'Estado Planilla': pln.estado
+                                      };
+                                    });
+                                    downloadExcelCSV(`Planilla_Transferencias_${pln.codigo}.csv`, exportRows);
+                                  }}
+                                  className="btn"
+                                  style={{ background: '#10b981', color: '#ffffff', fontWeight: 800, fontSize: '0.8rem', padding: '0.45rem 0.75rem' }}
+                                >
+                                  <FileSpreadsheet size={15} /> Descargar Excel
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
 
         </div>
