@@ -366,6 +366,50 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
   const [editingSocio, setEditingSocio] = useState(null);
   const [editSocioFormData, setEditSocioFormData] = useState(null);
 
+  // Estado para Tooltip flotante enriquecido al pasar el cursor sobre las rutas
+  const [socioRouteHoverTooltip, setSocioRouteHoverTooltip] = useState(null);
+
+  // Helper para buscar información completa de una ruta por su código o nombre
+  const getRouteDetails = (codeOrName) => {
+    if (!codeOrName) return null;
+    const clean = String(codeOrName).trim();
+    const lower = clean.toLowerCase();
+    const codeMatch = lower.match(/r-[a-z0-9]{3,5}/i);
+    const extractedCode = codeMatch ? codeMatch[0].toLowerCase() : null;
+
+    if (Array.isArray(routes) && routes.length > 0) {
+      let found = routes.find(r => {
+        const rc = (r.codigo || '').toLowerCase().trim();
+        return rc && (rc === lower || rc === extractedCode);
+      });
+      if (found) return found;
+
+      found = routes.find(r => {
+        const lp = (r.lugarPrincipal || '').toLowerCase().trim();
+        return lp && (lp === lower || lower.includes(lp) || lp.includes(lower));
+      });
+      if (found) return found;
+
+      found = routes.find(r => {
+        const lr = (r.lugarReferencia || '').toLowerCase().trim();
+        return lr && (lr === lower || lower.includes(lr));
+      });
+      if (found) return found;
+    }
+    return null;
+  };
+
+  // Descartar tooltip si el usuario hace scroll para evitar flotantes desalineados
+  useEffect(() => {
+    const handleScroll = () => {
+      if (socioRouteHoverTooltip) {
+        setSocioRouteHoverTooltip(null);
+      }
+    };
+    window.addEventListener('scroll', handleScroll, true);
+    return () => window.removeEventListener('scroll', handleScroll, true);
+  }, [socioRouteHoverTooltip]);
+
   const loadSocios = async (search = socioSearch) => {
     setSociosLoading(true);
     try {
@@ -2133,31 +2177,55 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
                       </button>
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-                      {socioFormData.rutas.map(rCode => (
-                        <span
-                          key={rCode}
-                          style={{
-                            background: 'var(--primary-burgundy)',
-                            color: '#ffffff',
-                            padding: '0.2rem 0.55rem',
-                            borderRadius: '999px',
-                            fontSize: '0.75rem',
-                            fontWeight: 800,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.35rem'
-                          }}
-                        >
-                          📌 {rCode}
+                      {socioFormData.rutas.map(rCode => {
+                        const matchedRoute = getRouteDetails(rCode);
+                        const tooltipTitle = matchedRoute
+                          ? `📍 ${matchedRoute.lugarPrincipal}${matchedRoute.codigo ? ` [${matchedRoute.codigo}]` : ''}${matchedRoute.lugarReferencia ? `\n🏢 Ref: ${matchedRoute.lugarReferencia}` : ''}${matchedRoute.dias ? `\n📅 Días: ${matchedRoute.dias}` : ''}${matchedRoute.horario ? `\n⏰ Horario: ${matchedRoute.horario}` : ''}`
+                          : `📍 Ruta: ${rCode}`;
+                        return (
                           <span
-                            onClick={() => removeSelectedRoute(rCode, false)}
-                            style={{ cursor: 'pointer', paddingLeft: '0.2rem', opacity: 0.8 }}
-                            title="Quitar esta ruta"
+                            key={rCode}
+                            title={tooltipTitle}
+                            onMouseEnter={(e) => {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const showBelow = rect.top < 130;
+                              setSocioRouteHoverTooltip({
+                                x: rect.left + rect.width / 2,
+                                y: showBelow ? rect.bottom + 8 : rect.top - 8,
+                                position: showBelow ? 'bottom' : 'top',
+                                route: matchedRoute,
+                                code: rCode
+                              });
+                            }}
+                            onMouseLeave={() => setSocioRouteHoverTooltip(null)}
+                            style={{
+                              background: 'var(--primary-burgundy)',
+                              color: '#ffffff',
+                              padding: '0.2rem 0.55rem',
+                              borderRadius: '999px',
+                              fontSize: '0.75rem',
+                              fontWeight: 800,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              cursor: 'help'
+                            }}
                           >
-                            ✕
+                            📌 {rCode}
+                            <span
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSocioRouteHoverTooltip(null);
+                                removeSelectedRoute(rCode, false);
+                              }}
+                              style={{ cursor: 'pointer', paddingLeft: '0.2rem', opacity: 0.8 }}
+                              title="Quitar esta ruta"
+                            >
+                              ✕
+                            </span>
                           </span>
-                        </span>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -2274,7 +2342,17 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
                     <th style={{ padding: '0.85rem 1rem' }}>Nombre Completo</th>
                     <th style={{ padding: '0.85rem 1rem' }}>Contacto (Teléfono / Correo)</th>
                     <th style={{ padding: '0.85rem 1rem' }}>DUI</th>
-                    <th style={{ padding: '0.85rem 1rem' }}>Ruta Asignada</th>
+                    <th style={{ padding: '0.85rem 1rem' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <span>Ruta Asignada</span>
+                        <span
+                          title="Pase el cursor sobre el código para ver el nombre y detalles completos de la ruta"
+                          style={{ cursor: 'help', fontSize: '0.82rem', opacity: 0.8 }}
+                        >
+                          ℹ️
+                        </span>
+                      </div>
+                    </th>
                     <th style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>Acciones</th>
                   </tr>
                 </thead>
@@ -2311,11 +2389,63 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
                             }
                             return (
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-                                {assignedList.map((rCode, i) => (
-                                  <span key={i} className="badge" style={{ background: 'var(--accent-gradient)', color: '#ffffff', fontWeight: 800, fontSize: '0.78rem' }}>
-                                    📌 {rCode}
-                                  </span>
-                                ))}
+                                {assignedList.map((rCode, i) => {
+                                  const matchedRoute = getRouteDetails(rCode);
+                                  const tooltipTitle = matchedRoute
+                                    ? `📍 ${matchedRoute.lugarPrincipal}${matchedRoute.codigo ? ` [${matchedRoute.codigo}]` : ''}${matchedRoute.lugarReferencia ? `\n🏢 Ref: ${matchedRoute.lugarReferencia}` : ''}${matchedRoute.departamentoNombre ? `\n🗺️ Zona: ${[matchedRoute.distritoNombre, matchedRoute.municipioNombre, matchedRoute.departamentoNombre].filter(Boolean).join(', ')}` : ''}${matchedRoute.dias ? `\n📅 Días: ${matchedRoute.dias}` : ''}${matchedRoute.horario ? `\n⏰ Horario: ${matchedRoute.horario}` : ''}`
+                                    : `📍 Ruta: ${rCode}`;
+
+                                  return (
+                                    <span
+                                      key={i}
+                                      className="badge"
+                                      title={tooltipTitle}
+                                      onMouseEnter={(e) => {
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        const showBelow = rect.top < 130;
+                                        setSocioRouteHoverTooltip({
+                                          x: rect.left + rect.width / 2,
+                                          y: showBelow ? rect.bottom + 8 : rect.top - 8,
+                                          position: showBelow ? 'bottom' : 'top',
+                                          route: matchedRoute,
+                                          code: rCode
+                                        });
+                                      }}
+                                      onMouseLeave={() => setSocioRouteHoverTooltip(null)}
+                                      style={{
+                                        background: 'var(--accent-gradient)',
+                                        color: '#ffffff',
+                                        fontWeight: 800,
+                                        fontSize: '0.78rem',
+                                        cursor: 'help',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '0.3rem',
+                                        transition: 'all 0.18s ease',
+                                        boxShadow: '0 2px 5px rgba(0,0,0,0.12)'
+                                      }}
+                                    >
+                                      <span>📌</span>
+                                      <span>{rCode}</span>
+                                      {matchedRoute && (
+                                        <span
+                                          style={{
+                                            fontSize: '0.68rem',
+                                            fontWeight: 700,
+                                            background: 'rgba(255,255,255,0.22)',
+                                            padding: '0.05rem 0.35rem',
+                                            borderRadius: '4px',
+                                            marginLeft: '0.15rem',
+                                            letterSpacing: 0
+                                          }}
+                                          title="Ver nombre de ruta"
+                                        >
+                                          ℹ️
+                                        </span>
+                                      )}
+                                    </span>
+                                  );
+                                })}
                               </div>
                             );
                           })()}
@@ -2501,31 +2631,55 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
                       </button>
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-                      {editSocioFormData.rutas.map(rCode => (
-                        <span
-                          key={rCode}
-                          style={{
-                            background: 'var(--primary-burgundy)',
-                            color: '#ffffff',
-                            padding: '0.2rem 0.5rem',
-                            borderRadius: '999px',
-                            fontSize: '0.74rem',
-                            fontWeight: 800,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.3rem'
-                          }}
-                        >
-                          📌 {rCode}
+                      {editSocioFormData.rutas.map(rCode => {
+                        const matchedRoute = getRouteDetails(rCode);
+                        const tooltipTitle = matchedRoute
+                          ? `📍 ${matchedRoute.lugarPrincipal}${matchedRoute.codigo ? ` [${matchedRoute.codigo}]` : ''}${matchedRoute.lugarReferencia ? `\n🏢 Ref: ${matchedRoute.lugarReferencia}` : ''}${matchedRoute.dias ? `\n📅 Días: ${matchedRoute.dias}` : ''}${matchedRoute.horario ? `\n⏰ Horario: ${matchedRoute.horario}` : ''}`
+                          : `📍 Ruta: ${rCode}`;
+                        return (
                           <span
-                            onClick={() => removeSelectedRoute(rCode, true)}
-                            style={{ cursor: 'pointer', paddingLeft: '0.2rem', opacity: 0.8 }}
-                            title="Quitar esta ruta"
+                            key={rCode}
+                            title={tooltipTitle}
+                            onMouseEnter={(e) => {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const showBelow = rect.top < 130;
+                              setSocioRouteHoverTooltip({
+                                x: rect.left + rect.width / 2,
+                                y: showBelow ? rect.bottom + 8 : rect.top - 8,
+                                position: showBelow ? 'bottom' : 'top',
+                                route: matchedRoute,
+                                code: rCode
+                              });
+                            }}
+                            onMouseLeave={() => setSocioRouteHoverTooltip(null)}
+                            style={{
+                              background: 'var(--primary-burgundy)',
+                              color: '#ffffff',
+                              padding: '0.2rem 0.5rem',
+                              borderRadius: '999px',
+                              fontSize: '0.74rem',
+                              fontWeight: 800,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.3rem',
+                              cursor: 'help'
+                            }}
                           >
-                            ✕
+                            📌 {rCode}
+                            <span
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSocioRouteHoverTooltip(null);
+                                removeSelectedRoute(rCode, true);
+                              }}
+                              style={{ cursor: 'pointer', paddingLeft: '0.2rem', opacity: 0.8 }}
+                              title="Quitar esta ruta"
+                            >
+                              ✕
+                            </span>
                           </span>
-                        </span>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -6821,6 +6975,96 @@ export default function AdminPanel({ routes, onRefreshRoutes, adminToken, adminU
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Tooltip flotante enriquecido para Rutas de Socios / Repartidores */}
+      {socioRouteHoverTooltip && (
+        <div
+          style={{
+            position: 'fixed',
+            left: `${Math.max(160, Math.min(window.innerWidth - 160, socioRouteHoverTooltip.x))}px`,
+            top: `${socioRouteHoverTooltip.y}px`,
+            transform: socioRouteHoverTooltip.position === 'bottom' ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
+            zIndex: 999999,
+            pointerEvents: 'none',
+            background: 'linear-gradient(135deg, #2A0040 0%, #150022 100%)',
+            color: '#ffffff',
+            padding: '0.85rem 1.1rem',
+            borderRadius: '12px',
+            boxShadow: '0 12px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(237, 0, 71, 0.35)',
+            border: '1.5px solid rgba(237, 0, 71, 0.6)',
+            fontSize: '0.82rem',
+            maxWidth: '340px',
+            minWidth: '240px',
+            animation: 'fadeIn 0.15s ease-out'
+          }}
+        >
+          {/* Encabezado: Nombre de la ruta y código */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.6rem', marginBottom: '0.45rem', borderBottom: '1px solid rgba(255,255,255,0.18)', paddingBottom: '0.4rem' }}>
+            <div style={{ fontWeight: 900, color: '#FFD700', fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              📍 {socioRouteHoverTooltip.route ? socioRouteHoverTooltip.route.lugarPrincipal : socioRouteHoverTooltip.code}
+            </div>
+            {socioRouteHoverTooltip.route?.codigo && (
+              <span style={{ background: 'rgba(237,0,71,0.3)', border: '1px solid #ED0047', color: '#ffffff', padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.74rem', fontWeight: 800 }}>
+                {socioRouteHoverTooltip.route.codigo}
+              </span>
+            )}
+          </div>
+
+          {/* Referencia */}
+          {socioRouteHoverTooltip.route?.lugarReferencia && (
+            <div style={{ color: '#f1f5f9', fontSize: '0.78rem', marginBottom: '0.35rem', display: 'flex', alignItems: 'flex-start', gap: '0.35rem', lineHeight: '1.35' }}>
+              <span style={{ opacity: 0.85 }}>🏢</span>
+              <span>{socioRouteHoverTooltip.route.lugarReferencia}</span>
+            </div>
+          )}
+
+          {/* Ubicación geográfica (Departamento / Municipio / Distrito) */}
+          {(socioRouteHoverTooltip.route?.departamentoNombre || socioRouteHoverTooltip.route?.municipioNombre) && (
+            <div style={{ color: '#cbd5e1', fontSize: '0.74rem', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <span style={{ opacity: 0.85 }}>🗺️</span>
+              <span>
+                {[socioRouteHoverTooltip.route.distritoNombre, socioRouteHoverTooltip.route.municipioNombre, socioRouteHoverTooltip.route.departamentoNombre].filter(Boolean).join(', ')}
+              </span>
+            </div>
+          )}
+
+          {/* Días y Horarios */}
+          {(socioRouteHoverTooltip.route?.dias || socioRouteHoverTooltip.route?.horario) && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', background: 'rgba(255,255,255,0.08)', padding: '0.45rem 0.65rem', borderRadius: '6px', fontSize: '0.74rem', color: '#f8fafc', marginTop: '0.2rem' }}>
+              {socioRouteHoverTooltip.route.dias && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <span>📅</span> <strong style={{ color: '#fde047' }}>{socioRouteHoverTooltip.route.dias}</strong>
+                </div>
+              )}
+              {socioRouteHoverTooltip.route.horario && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <span>⏰</span> <span>{socioRouteHoverTooltip.route.horario}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {!socioRouteHoverTooltip.route && (
+            <div style={{ color: '#94a3b8', fontSize: '0.75rem', fontStyle: 'italic', marginTop: '0.2rem' }}>
+              Código asignado: <strong>{socioRouteHoverTooltip.code}</strong>
+            </div>
+          )}
+
+          {/* Flecha indicadora (caret) */}
+          <div
+            style={{
+              position: 'absolute',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              ...(socioRouteHoverTooltip.position === 'bottom'
+                ? { top: '-6px', borderBottom: '6px solid rgba(237, 0, 71, 0.8)', borderLeft: '6px solid transparent', borderRight: '6px solid transparent' }
+                : { bottom: '-6px', borderTop: '6px solid rgba(237, 0, 71, 0.8)', borderLeft: '6px solid transparent', borderRight: '6px solid transparent' }),
+              width: 0,
+              height: 0
+            }}
+          />
         </div>
       )}
     </div>
